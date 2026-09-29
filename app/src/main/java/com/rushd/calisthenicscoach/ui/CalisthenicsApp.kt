@@ -32,9 +32,11 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.rushd.calisthenicscoach.data.AppDatabase
 import com.rushd.calisthenicscoach.data.WorkoutHistory
+import com.rushd.calisthenicscoach.data.UserPreferencesRepository
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 import com.rushd.calisthenicscoach.domain.SamplePrograms
+import com.rushd.calisthenicscoach.domain.UserProfile
 import com.rushd.calisthenicscoach.domain.WorkoutPlan
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,6 +60,25 @@ private data class WeekDay(
 
 @Composable
 fun CalisthenicsApp() {
+    val context = LocalContext.current
+    val repository = remember { UserPreferencesRepository(context) }
+    val profile by repository.profile.collectAsStateWithLifecycle(initialValue = UserProfile())
+    val scope = rememberCoroutineScope()
+
+    if (profile?.onboardingCompleted != true) {
+        OnboardingScreen(
+            onComplete = { completed ->
+                scope.launch { repository.save(completed) }
+            }
+        )
+        return
+    }
+
+    MainExperience(profile = profile!!)
+}
+
+@Composable
+private fun MainExperience(profile: UserProfile) {
     val nav = rememberNavController()
     val tabs = listOf(Tab.Today, Tab.Plan, Tab.Library, Tab.Progress)
     val entry by nav.currentBackStackEntryAsState()
