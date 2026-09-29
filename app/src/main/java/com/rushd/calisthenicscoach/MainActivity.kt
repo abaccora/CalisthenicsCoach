@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import com.rushd.calisthenicscoach.ui.CalisthenicsApp
 import com.rushd.calisthenicscoach.ui.theme.CalisthenicsTheme
 
@@ -12,7 +15,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CalisthenicsTheme { CalisthenicsApp() }
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                CalisthenicsTheme { CalisthenicsApp() }
+            }
         }
     }
 }
