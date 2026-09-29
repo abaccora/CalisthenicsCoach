@@ -4,7 +4,10 @@ import kotlin.math.roundToInt
 
 object ProgramEngine {
 
-    fun build(profile: UserProfile): TrainingBlueprint {
+    fun build(
+        profile: UserProfile,
+        effortHistory: Map<String, Double> = emptyMap()
+    ): TrainingBlueprint {
         val level = level(profile)
         val recovery = recoveryProfile(profile)
         val totalWeeks = when (profile.goal) {
@@ -15,7 +18,11 @@ object ProgramEngine {
 
         val plans = buildPlans(profile, level, recovery)
             .map { plan ->
-                plan.copy(exercises = plan.exercises.filter { ExerciseVideoCatalog.forExercise(it.name) != null })
+                plan.copy(
+                    exercises = plan.exercises
+                        .filter { ExerciseVideoCatalog.forExercise(it.name) != null }
+                        .map { exercise -> adaptFromHistory(exercise, effortHistory[exercise.name]) }
+                )
             }
             .filter { it.exercises.isNotEmpty() }
 
@@ -160,6 +167,21 @@ object ProgramEngine {
                 ex("Bicycle Crunch", "كرنش الدراجة", 3, "10/جهة", 45, "تحرك ببطء دون شد الرقبة"),
                 ex("Cat Cow Stretch", "إطالة القطة والبقرة", 2, "8–10", 30, "نسق الحركة مع التنفس")
             )
+        }
+    }
+
+    private fun adaptFromHistory(exercise: Exercise, averageRpe: Double?): Exercise {
+        if (averageRpe == null) return exercise
+        return when {
+            averageRpe >= 9.0 -> exercise.copy(
+                sets = (exercise.sets - 1).coerceAtLeast(2),
+                restSec = (exercise.restSec + 20).coerceAtMost(180)
+            )
+            averageRpe <= 6.0 -> exercise.copy(
+                sets = (exercise.sets + 1).coerceAtMost(5),
+                restSec = (exercise.restSec - 10).coerceAtLeast(30)
+            )
+            else -> exercise
         }
     }
 
