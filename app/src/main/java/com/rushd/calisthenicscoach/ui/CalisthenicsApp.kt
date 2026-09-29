@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -777,22 +778,42 @@ private fun ExerciseLibraryScreen() {
 }
 
 @Composable
-private fun ExerciseVideoPlayer(video: ExerciseVideo, modifier: Modifier = Modifier) {
+private fun ExerciseVideoPlayer(
+    video: ExerciseVideo,
+    modifier: Modifier = Modifier,
+    showControls: Boolean = false,
+    autoPlay: Boolean = true
+) {
     val context = LocalContext.current
     val uri = remember(video.resId) {
         Uri.parse("android.resource://${context.packageName}/${video.resId}")
     }
+
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
             VideoView(ctx).apply {
-                val controller = MediaController(ctx)
-                controller.setAnchorView(this)
-                setMediaController(controller)
+                if (showControls) {
+                    val controller = MediaController(ctx)
+                    controller.setAnchorView(this)
+                    setMediaController(controller)
+                } else {
+                    setMediaController(null)
+                }
+
+                val playerView = this
                 setVideoURI(uri)
+                tag = uri.toString()
                 setOnPreparedListener { mediaPlayer ->
                     mediaPlayer.isLooping = true
                     seekTo(1)
+                    if (autoPlay) playerView.start()
+                }
+                setOnCompletionListener {
+                    if (autoPlay) {
+                        seekTo(1)
+                        start()
+                    }
                 }
             }
         },
@@ -800,7 +821,9 @@ private fun ExerciseVideoPlayer(video: ExerciseVideo, modifier: Modifier = Modif
             if (view.tag != uri.toString()) {
                 view.tag = uri.toString()
                 view.setVideoURI(uri)
-                view.seekTo(1)
+            }
+            if (autoPlay && !view.isPlaying) {
+                view.start()
             }
         }
     )
@@ -947,8 +970,11 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).workoutDao() }
     val scope = rememberCoroutineScope()
+
     var index by remember { mutableIntStateOf(0) }
+    var completedSets by remember { mutableIntStateOf(0) }
     var rest by remember { mutableIntStateOf(0) }
+    var perceivedEffort by remember { mutableIntStateOf(7) }
     val started = remember { SystemClock.elapsedRealtime() }
 
     LaunchedEffect(rest) {
@@ -959,13 +985,37 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
     }
 
     val exercise = plan.exercises[index]
+    val nextExercise = plan.exercises.getOrNull(index + 1)
     val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
+
+    fun moveNextOrFinish() {
+        if (index < plan.exercises.lastIndex) {
+            index += 1
+            completedSets = 0
+            perceivedEffort = 7
+            rest = 0
+        } else {
+            val seconds = ((SystemClock.elapsedRealtime() - started) / 1000).toInt()
+            scope.launch {
+                dao.insert(
+                    WorkoutHistory(
+                        planId = plan.id,
+                        title = plan.title,
+                        completedAt = System.currentTimeMillis(),
+                        durationSec = seconds,
+                        completedExercises = plan.exercises.size
+                    )
+                )
+                onDone()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(horizontalAlignment = Alignment.Start) {
                         Text(plan.title, fontWeight = FontWeight.Bold)
                         Text(
                             "التمرين ${index + 1} من ${plan.exercises.size}",
@@ -976,47 +1026,59 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
-                        Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                        Icon(Icons.Default.Close, contentDescription = "إغلاق الجلسة")
                     }
                 }
             )
         },
         bottomBar = {
             Surface(
-                tonalElevation = 3.dp,
+                tonalElevation = 4.dp,
                 color = MaterialTheme.colorScheme.surface
             ) {
-                Button(
-                    onClick = {
-                        if (index < plan.exercises.lastIndex) {
-                            index += 1
-                            rest = 0
-                        } else {
-                            val seconds = ((SystemClock.elapsedRealtime() - started) / 1000).toInt()
-                            scope.launch {
-                                dao.insert(
-                                    WorkoutHistory(
-                                        planId = plan.id,
-                                        title = plan.title,
-                                        completedAt = System.currentTimeMillis(),
-                                        durationSec = seconds,
-                                        completedExercises = plan.exercises.size
-                                    )
-                                )
-                                onDone()
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .height(56.dp)
+                Column(
+                    Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        if (index < plan.exercises.lastIndex) "تم · التالي"
-                        else "إنهاء وحفظ الجلسة",
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (completedSets < exercise.sets) {
+                        Button(
+                            onClick = {
+                                completedSets += 1
+                                rest = exercise.restSec
+                            },
+                            enabled = rest == 0,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(58.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (rest > 0)
+                                    "راحة · $rest ث"
+                                else
+                                    "أنجزت المجموعة ${completedSets + 1} من ${exercise.sets}",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = { moveNextOrFinish() },
+                            enabled = rest == 0,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(58.dp)
+                        ) {
+                            Text(
+                                when {
+                                    rest > 0 -> "راحة · $rest ث"
+                                    nextExercise != null -> "التالي · ${nextExercise.ArabicName}"
+                                    else -> "إنهاء وحفظ الجلسة"
+                                },
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1030,7 +1092,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
         ) {
             item {
                 LinearProgressIndicator(
-                    progress = { (index + 1f) / plan.exercises.size },
+                    progress = { (index + completedSets.toFloat() / exercise.sets) / plan.exercises.size },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1050,23 +1112,74 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                 }
             }
 
-            video?.let {
-                item {
+            item {
+                if (video != null) {
                     ExerciseVideoPlayer(
-                        video = it,
+                        video = video,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(220.dp)
-                            .clip(RoundedCornerShape(26.dp))
+                            .height(250.dp)
+                            .clip(RoundedCornerShape(28.dp)),
+                        showControls = false,
+                        autoPlay = true
                     )
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            "هذا التمرين غير مدعوم بفيديو ولن يُستخدم في الخطط الجديدة.",
+                            modifier = Modifier.padding(18.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
             }
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     StatPill("${exercise.sets}", "مجموعات", Modifier.weight(1f))
-                    StatPill(exercise.reps, "تكرارات", Modifier.weight(1f))
+                    StatPill(exercise.reps, "الهدف", Modifier.weight(1f))
                     StatPill("${exercise.restSec}", "راحة/ث", Modifier.weight(1f))
+                }
+            }
+
+            item {
+                Text(
+                    "تقدم المجموعات",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    repeat(exercise.sets) { setIndex ->
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (setIndex < completedSets)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (setIndex < completedSets) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                } else {
+                                    Text(
+                                        "${setIndex + 1}",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1093,7 +1206,25 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
             }
 
             item {
-                if (rest > 0) {
+                Text(
+                    "شدة المجموعة الأخيرة",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "RPE $perceivedEffort · استخدمه لتعديل الجلسات القادمة.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = perceivedEffort.toFloat(),
+                    onValueChange = { perceivedEffort = it.toInt().coerceIn(5, 10) },
+                    valueRange = 5f..10f,
+                    steps = 4
+                )
+            }
+
+            if (rest > 0) {
+                item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(28.dp),
@@ -1104,7 +1235,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                "وقت الراحة",
+                                "استعد للمجموعة التالية",
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
@@ -1113,26 +1244,48 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            TextButton(onClick = { rest = 0 }) {
-                                Text("تخطي")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { rest = (rest + 30).coerceAtMost(300) }) {
+                                    Text("+30 ث")
+                                }
+                                TextButton(onClick = { rest = 0 }) {
+                                    Text("تخطي الراحة")
+                                }
                             }
                         }
-                    }
-                } else {
-                    OutlinedButton(
-                        onClick = { rest = exercise.restSec },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp)
-                    ) {
-                        Icon(Icons.Default.Timer, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("ابدأ مؤقت الراحة")
                     }
                 }
             }
 
-            item { Spacer(Modifier.height(80.dp)) }
+            nextExercise?.let { upcoming ->
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "التالي",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    upcoming.ArabicName,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(92.dp)) }
         }
     }
 }
