@@ -21,30 +21,35 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
+import com.rushd.calisthenicscoach.data.OnboardingDraft
 
 @Composable
-fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
-    var step by remember { mutableIntStateOf(0) }
+fun OnboardingScreen(
+    initialDraft: OnboardingDraft,
+    onDraftChange: (Int, UserProfile) -> Unit,
+    onComplete: (UserProfile) -> Unit
+) {
+    var step by remember { mutableIntStateOf(initialDraft.step.coerceIn(0, 6)) }
 
-    var age by remember { mutableIntStateOf(30) }
-    var height by remember { mutableIntStateOf(175) }
-    var weight by remember { mutableIntStateOf(75) }
-    var activity by remember { mutableStateOf("متوسط") }
+    var age by remember { mutableIntStateOf(initialDraft.profile.age) }
+    var height by remember { mutableIntStateOf(initialDraft.profile.heightCm) }
+    var weight by remember { mutableIntStateOf(initialDraft.profile.weightKg) }
+    var activity by remember { mutableStateOf(initialDraft.profile.activityLevel) }
 
-    var goal by remember { mutableStateOf("قوة عامة") }
-    var experience by remember { mutableStateOf("مبتدئ") }
+    var goal by remember { mutableStateOf(initialDraft.profile.goal) }
+    var experience by remember { mutableStateOf(initialDraft.profile.experience) }
 
-    var days by remember { mutableIntStateOf(3) }
-    var minutes by remember { mutableIntStateOf(45) }
+    var days by remember { mutableIntStateOf(initialDraft.profile.daysPerWeek) }
+    var minutes by remember { mutableIntStateOf(initialDraft.profile.sessionMinutes) }
 
-    var equipment by remember { mutableStateOf(setOf<String>()) }
-    var limitations by remember { mutableStateOf(setOf<String>()) }
-    var skills by remember { mutableStateOf(setOf<String>()) }
+    var equipment by remember { mutableStateOf(initialDraft.profile.equipment) }
+    var limitations by remember { mutableStateOf(initialDraft.profile.limitations) }
+    var skills by remember { mutableStateOf(initialDraft.profile.targetSkills) }
 
-    var pushUps by remember { mutableIntStateOf(10) }
-    var pullUps by remember { mutableIntStateOf(0) }
-    var dips by remember { mutableIntStateOf(0) }
-    var hollow by remember { mutableIntStateOf(20) }
+    var pushUps by remember { mutableIntStateOf(initialDraft.profile.maxPushUps) }
+    var pullUps by remember { mutableIntStateOf(initialDraft.profile.maxPullUps) }
+    var dips by remember { mutableIntStateOf(initialDraft.profile.maxDips) }
+    var hollow by remember { mutableIntStateOf(initialDraft.profile.hollowHoldSec) }
 
     val draft = UserProfile(
         age = age,
@@ -74,7 +79,10 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (step > 0) {
-                        IconButton(onClick = { step-- }) {
+                        IconButton(onClick = {
+                            step--
+                            onDraftChange(step, draft)
+                        }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
                         }
                     }
@@ -101,7 +109,13 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
             Surface(tonalElevation = 3.dp) {
                 Button(
                     onClick = {
-                        if (step < 6) step++ else onComplete(draft)
+                        if (step < 6) {
+                            val next = step + 1
+                            step = next
+                            onDraftChange(next, draft)
+                        } else {
+                            onComplete(draft)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
