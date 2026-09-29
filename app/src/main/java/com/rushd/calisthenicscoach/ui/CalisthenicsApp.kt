@@ -578,6 +578,7 @@ private fun PhaseTimeline() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExerciseLibraryScreen() {
     var query by rememberSaveable { mutableStateOf("") }
@@ -883,6 +884,7 @@ private fun ProgressScreen() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
     val context = LocalContext.current
