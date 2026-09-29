@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +35,9 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.rushd.calisthenicscoach.data.AppDatabase
 import com.rushd.calisthenicscoach.data.WorkoutHistory
+import com.rushd.calisthenicscoach.data.SetPerformance
+import com.rushd.calisthenicscoach.data.ActiveWorkoutSession
+import com.rushd.calisthenicscoach.data.WorkoutSessionRepository
 import com.rushd.calisthenicscoach.data.UserPreferencesRepository
 import com.rushd.calisthenicscoach.data.OnboardingDraft
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
@@ -999,49 +1004,167 @@ private fun ProgressScreen() {
 private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).workoutDao() }
+    val sessionRepo = remember { WorkoutSessionRepository(context) }
     val scope = rememberCoroutineScope()
 
+    var loadedSession by remember { mutableStateOf(false) }
     var index by remember { mutableIntStateOf(0) }
     val completedSets = remember { mutableStateMapOf<Int, Int>() }
-    val effortByExercise = remember { mutableStateMapOf<Int, Int>() }
+    val performances = remember { mutableStateListOf<SetPerformance>() }
+    val substitutions = remember { mutableStateMapOf<Int, String>() }
+    var startedAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
     var rest by remember { mutableIntStateOf(0) }
     var restOwner by remember { mutableIntStateOf(-1) }
-    val started = remember { SystemClock.elapsedRealtime() }
+    var repsInput by remember { mutableStateOf("8") }
+    var rpeInput by remember { mutableStateOf("7") }
+    var showSubstitute by remember { mutableStateOf(false) }
+    var showSummary by remember { mutableStateOf(false) }
+
+    LaunchedEffect(plan.id) {
+        val saved = sessionRepo.activeSession.first()
+        if (saved != null && saved.planId == plan.id) {
+            index = saved.currentExerciseIndex.coerceIn(0, plan.exercises.lastIndex)
+            completedSets.putAll(saved.completedSets)
+            performances.addAll(saved.setPerformances)
+            substitutions.putAll(saved.substitutions)
+            startedAt = saved.startedAt
+        } else {
+            startedAt = System.currentTimeMillis()
+            sessionRepo.saveSession(
+                ActiveWorkoutSession(
+                    planId = plan.id,
+                    currentExerciseIndex = 0,
+                    completedSets = emptyMap(),
+                    setPerformances = emptyList(),
+                    startedAt = startedAt
+                )
+            )
+        }
+        loadedSession = true
+    }
+
+    fun currentExerciseAt(i: Int): com.rushd.calisthenicscoach.domain.Exercise {
+        val base = plan.exercises[i]
+        val replacement = substitutions[i]?.let { name ->
+            ExerciseVideoCatalog.all.firstOrNull { it.nameEn == name }
+        }
+        return if (replacement != null) {
+            base.copy(name = replacement.nameEn, ArabicName = replacement.nameAr)
+        } else base
+    }
+
+    fun nextIncomplete(after: Int = index): Int? {
+        if (plan.exercises.isEmpty()) return null
+        for (offset in 1..plan.exercises.size) {
+            val candidate = (after + offset) % plan.exercises.size
+            if ((completedSets[candidate] ?: 0) < plan.exercises[candidate].sets) return candidate
+        }
+        return null
+    }
+
+    fun persist(newIndex: Int = index) {
+        if (!loadedSession) return
+        scope.launch {
+            sessionRepo.saveSession(
+                ActiveWorkoutSession(
+                    planId = plan.id,
+                    currentExerciseIndex = newIndex,
+                    completedSets = completedSets.toMap(),
+                    setPerformances = performances.toList(),
+                    startedAt = startedAt,
+                    substitutions = substitutions.toMap()
+                )
+            )
+        }
+    }
 
     LaunchedEffect(rest) {
         if (rest > 0) {
             delay(1000)
             rest -= 1
+        } else if (restOwner in plan.exercises.indices) {
+            val owner = restOwner
+            restOwner = -1
+            val ownerFinished = (completedSets[owner] ?: 0) >= plan.exercises[owner].sets
+            if (ownerFinished) {
+                nextIncomplete(owner)?.let { next ->
+                    index = next
+                    repsInput = suggestedReps(currentExerciseAt(next).reps).toString()
+                    rpeInput = "7"
+                    persist(next)
+                }
+            }
         }
     }
 
-    val exercise = plan.exercises[index]
+    if (!loadedSession) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val exercise = currentExerciseAt(index)
     val doneSets = completedSets[index] ?: 0
-    val perceivedEffort = effortByExercise[index] ?: 7
     val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
     val totalSets = plan.exercises.sumOf { it.sets }
     val finishedSets = completedSets.values.sum()
     val allCompleted = plan.exercises.indices.all { i ->
         (completedSets[i] ?: 0) >= plan.exercises[i].sets
     }
+    val durationSec = ((System.currentTimeMillis() - startedAt) / 1000L).toInt().coerceAtLeast(0)
+
+    fun recordSet() {
+        if (doneSets >= exercise.sets) return
+        val reps = repsInput.toIntOrNull()?.coerceAtLeast(0) ?: suggestedReps(exercise.reps)
+        val rpe = rpeInput.toIntOrNull()?.coerceIn(1, 10) ?: 7
+        completedSets[index] = doneSets + 1
+        performances.removeAll { it.exerciseName == exercise.name && it.setIndex == doneSets }
+        performances.add(
+            SetPerformance(
+                exerciseName = exercise.name,
+                setIndex = doneSets,
+                reps = reps,
+                rpe = rpe
+            )
+        )
+        rest = exercise.restSec
+        restOwner = index
+        persist(index)
+    }
 
     fun finishSession() {
-        val seconds = ((SystemClock.elapsedRealtime() - started) / 1000).toInt()
         scope.launch {
             dao.insert(
                 WorkoutHistory(
                     planId = plan.id,
                     title = plan.title,
                     completedAt = System.currentTimeMillis(),
-                    durationSec = seconds,
-                    completedExercises = plan.exercises.count { ex ->
-                        val i = plan.exercises.indexOf(ex)
-                        (completedSets[i] ?: 0) >= ex.sets
+                    durationSec = durationSec,
+                    completedExercises = plan.exercises.indices.count { i ->
+                        (completedSets[i] ?: 0) >= plan.exercises[i].sets
                     }
                 )
             )
-            onDone()
+            sessionRepo.mergeHistory(performances.toList())
+            sessionRepo.clearSession()
+            showSummary = true
         }
+    }
+
+    if (showSummary) {
+        WorkoutSummaryScreen(
+            title = plan.title,
+            durationSec = durationSec,
+            performances = performances.toList(),
+            completedExercises = plan.exercises.indices.count { i ->
+                (completedSets[i] ?: 0) >= plan.exercises[i].sets
+            },
+            totalExercises = plan.exercises.size,
+            onDone = onDone
+        )
+        return
     }
 
     Scaffold(
@@ -1051,99 +1174,111 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                     Column(horizontalAlignment = Alignment.Start) {
                         Text(plan.title, fontWeight = FontWeight.Bold)
                         Text(
-                            "${finishedSets} من ${totalSets} مجموعات",
+                            "$finishedSets من $totalSets مجموعة",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onDone) {
-                        Icon(Icons.Default.Close, contentDescription = "إغلاق الجلسة")
+                    IconButton(onClick = {
+                        persist(index)
+                        onDone()
+                    }) {
+                        Icon(Icons.Default.Close, contentDescription = "حفظ والخروج")
                     }
                 }
             )
         },
         bottomBar = {
-            Surface(
-                tonalElevation = 6.dp,
-                color = MaterialTheme.colorScheme.surface
-            ) {
+            Surface(tonalElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
                 Column(
                     Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (rest > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Timer, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        "الراحة · $rest ث",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (restOwner in plan.exercises.indices) {
-                                        Text(
-                                            "بعد ${plan.exercises[restOwner].ArabicName}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
-                                        )
-                                    }
-                                }
-                                TextButton(onClick = { rest = (rest + 30).coerceAtMost(300) }) {
-                                    Text("+30")
-                                }
-                                TextButton(onClick = { rest = 0 }) {
-                                    Text("تخطي")
-                                }
-                            }
+                            Icon(Icons.Default.Timer, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("راحة $rest ث", fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { rest = 0 }) { Text("تخطي") }
+                            TextButton(onClick = { rest = (rest + 30).coerceAtMost(300) }) { Text("+30") }
                         }
                     }
 
-                    if (allCompleted) {
-                        Button(
-                            onClick = { finishSession() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(54.dp)
-                        ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("إنهاء وحفظ الجلسة", fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        Button(
-                            onClick = {
-                                val current = completedSets[index] ?: 0
-                                if (current < exercise.sets) {
-                                    completedSets[index] = current + 1
-                                    rest = exercise.restSec
-                                    restOwner = index
-                                }
-                            },
-                            enabled = doneSets < exercise.sets,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(54.dp)
-                        ) {
-                            Icon(Icons.Default.Check, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                if (doneSets < exercise.sets)
-                                    "تسجيل المجموعة ${doneSets + 1} من ${exercise.sets}"
-                                else
-                                    "اكتملت مجموعات هذا التمرين",
-                                fontWeight = FontWeight.Bold
+                    if (!allCompleted && doneSets < exercise.sets) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CompactNumberField(
+                                label = "التكرارات",
+                                value = repsInput,
+                                onValueChange = { repsInput = it },
+                                modifier = Modifier.weight(1f),
+                                maxDigits = 3
                             )
+                            CompactNumberField(
+                                label = "الجهد RPE",
+                                value = rpeInput,
+                                onValueChange = { rpeInput = it },
+                                modifier = Modifier.weight(1f),
+                                maxDigits = 2
+                            )
+                        }
+                    }
+
+                    when {
+                        allCompleted -> {
+                            Button(
+                                onClick = { finishSession() },
+                                modifier = Modifier.fillMaxWidth().height(54.dp)
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("إنهاء الجلسة وعرض الملخص", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        doneSets >= exercise.sets -> {
+                            val next = nextIncomplete(index)
+                            Button(
+                                onClick = {
+                                    if (next != null) {
+                                        rest = 0
+                                        restOwner = -1
+                                        index = next
+                                        repsInput = suggestedReps(currentExerciseAt(next).reps).toString()
+                                        rpeInput = "7"
+                                        persist(next)
+                                    }
+                                },
+                                enabled = next != null,
+                                modifier = Modifier.fillMaxWidth().height(54.dp)
+                            ) {
+                                Text(
+                                    if (next != null) "التمرين التالي · ${currentExerciseAt(next).ArabicName}"
+                                    else "اكتملت الجلسة",
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                            }
+                        }
+                        else -> {
+                            Button(
+                                onClick = { recordSet() },
+                                enabled = rest == 0,
+                                modifier = Modifier.fillMaxWidth().height(54.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    if (rest > 0) "استراحة · $rest ث"
+                                    else "تسجيل المجموعة ${doneSets + 1} من ${exercise.sets}",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -1151,9 +1286,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1167,35 +1300,30 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
             }
 
             item {
-                Text(
-                    "تمارين الجلسة",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 2.dp)
                 ) {
                     items(plan.exercises.indices.toList()) { exerciseIndex ->
-                        val item = plan.exercises[exerciseIndex]
+                        val item = currentExerciseAt(exerciseIndex)
                         val itemDone = completedSets[exerciseIndex] ?: 0
                         FilterChip(
                             selected = index == exerciseIndex,
-                            onClick = { index = exerciseIndex },
+                            onClick = {
+                                index = exerciseIndex
+                                repsInput = suggestedReps(item.reps).toString()
+                                rpeInput = "7"
+                                persist(exerciseIndex)
+                            },
                             label = {
                                 Text(
-                                    "${exerciseIndex + 1}. ${item.ArabicName}  $itemDone/${item.sets}",
+                                    "${exerciseIndex + 1}. ${item.ArabicName}  $itemDone/${plan.exercises[exerciseIndex].sets}",
                                     maxLines = 1
                                 )
                             },
                             leadingIcon = {
-                                if (itemDone >= item.sets) {
-                                    Icon(
-                                        Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                if (itemDone >= plan.exercises[exerciseIndex].sets) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                                 }
                             }
                         )
@@ -1204,17 +1332,23 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
             }
 
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        exercise.ArabicName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                    Text(
-                        exercise.name,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            exercise.ArabicName,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            "المجموعة ${doneSets + 1} من ${exercise.sets}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TextButton(onClick = { showSubstitute = true }) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("استبدال")
+                    }
                 }
             }
 
@@ -1222,10 +1356,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                 if (video != null) {
                     ExerciseVideoPlayer(
                         video = video,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp)
-                            .clip(RoundedCornerShape(26.dp)),
+                        modifier = Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)),
                         showControls = false,
                         autoPlay = true
                     )
@@ -1241,107 +1372,161 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
             }
 
             item {
-                Text(
-                    "المجموعات",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    repeat(exercise.sets) { setIndex ->
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable {
-                                    completedSets[index] =
-                                        if (setIndex < doneSets) setIndex else setIndex + 1
-                                },
-                            shape = RoundedCornerShape(18.dp),
-                            color = if (setIndex < doneSets)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(vertical = 14.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (setIndex < doneSets) {
-                                    Icon(Icons.Default.Check, contentDescription = null)
-                                } else {
-                                    Text("${setIndex + 1}", fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
                 ) {
-                    Row(
-                        Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
                         Icon(Icons.Default.Lightbulb, contentDescription = null)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text("مفتاح الأداء", fontWeight = FontWeight.Bold)
-                            Text(
-                                exercise.cue,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text("ملاحظة الأداء", fontWeight = FontWeight.Bold)
+                            Text(exercise.cue, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
 
             item {
-                Text(
-                    "شدة المجموعة الأخيرة",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "RPE $perceivedEffort · عدّلها بعد التمرين عند الحاجة",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Slider(
-                    value = perceivedEffort.toFloat(),
-                    onValueChange = {
-                        effortByExercise[index] = it.toInt().coerceIn(5, 10)
-                    },
-                    valueRange = 5f..10f,
-                    steps = 4
-                )
-            }
-
-            if (doneSets >= exercise.sets && !allCompleted) {
-                item {
-                    val nextIncomplete = plan.exercises.indices.firstOrNull {
-                        (completedSets[it] ?: 0) < plan.exercises[it].sets
-                    }
-                    if (nextIncomplete != null) {
-                        FilledTonalButton(
-                            onClick = { index = nextIncomplete },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("الانتقال إلى ${plan.exercises[nextIncomplete].ArabicName}")
-                            Spacer(Modifier.width(8.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-                        }
-                    }
+                Text("المجموعات المسجلة", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                performances.filter { it.exerciseName == exercise.name }.sortedBy { it.setIndex }.forEach { item ->
+                    ListItem(
+                        headlineContent = { Text("المجموعة ${item.setIndex + 1}") },
+                        supportingContent = { Text("${item.reps} تكرار · RPE ${item.rpe}") },
+                        leadingContent = { Icon(Icons.Default.CheckCircle, contentDescription = null) }
+                    )
                 }
             }
 
-            item { Spacer(Modifier.height(88.dp)) }
+            item { Spacer(Modifier.height(100.dp)) }
         }
+    }
+
+    if (showSubstitute) {
+        val baseVideo = ExerciseVideoCatalog.forExercise(plan.exercises[index].name)
+        val alternatives = ExerciseVideoCatalog.all.filter { alt ->
+            alt.key != baseVideo?.key && (baseVideo == null || alt.category == baseVideo.category)
+        }.take(12)
+
+        ModalBottomSheet(onDismissRequest = { showSubstitute = false }) {
+            Column(
+                Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("استبدال ${exercise.ArabicName}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "اختر حركة من الفئة نفسها. ستبقى المجموعات والراحة كما هي.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                alternatives.forEach { alt ->
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            substitutions[index] = alt.nameEn
+                            completedSets[index] = 0
+                            performances.removeAll { it.exerciseName == exercise.name }
+                            repsInput = suggestedReps(plan.exercises[index].reps).toString()
+                            persist(index)
+                            showSubstitute = false
+                        },
+                        headlineContent = { Text(alt.nameAr, fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text(alt.nameEn) },
+                        leadingContent = { Icon(Icons.Default.SwapHoriz, contentDescription = null) }
+                    )
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactNumberField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    maxDigits: Int = 3
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { raw ->
+            onValueChange(raw.filter { it.isDigit() }.take(maxDigits))
+        },
+        modifier = modifier,
+        singleLine = true,
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun WorkoutSummaryScreen(
+    title: String,
+    durationSec: Int,
+    performances: List<SetPerformance>,
+    completedExercises: Int,
+    totalExercises: Int,
+    onDone: () -> Unit
+) {
+    val totalReps = performances.sumOf { it.reps }
+    val avgRpe = if (performances.isEmpty()) 0.0 else performances.map { it.rpe }.average()
+
+    Scaffold(
+        bottomBar = {
+            Button(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp)
+            ) {
+                Text("العودة إلى اليوم", fontWeight = FontWeight.Bold)
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            item {
+                Icon(
+                    Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(12.dp))
+                Text("اكتملت الجلسة", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+                Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MetricCard(Modifier.weight(1f), Icons.Default.Schedule, "${durationSec / 60}", "دقيقة")
+                    MetricCard(Modifier.weight(1f), Icons.Default.FitnessCenter, "${performances.size}", "مجموعة")
+                    MetricCard(Modifier.weight(1f), Icons.Default.Repeat, "$totalReps", "تكرار")
+                }
+            }
+            item {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("ملخص الأداء", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("$completedExercises من $totalExercises تمارين مكتملة")
+                        Text("متوسط الجهد RPE ${String.format("%.1f", avgRpe)}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun suggestedReps(target: String): Int {
+    val values = Regex("\\d+").findAll(target).mapNotNull { it.value.toIntOrNull() }.toList()
+    return when {
+        values.size >= 2 -> ((values[0] + values[1]) / 2).coerceAtLeast(1)
+        values.size == 1 -> values[0].coerceAtLeast(1)
+        else -> 8
     }
 }
 
