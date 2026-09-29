@@ -36,6 +36,7 @@ import com.rushd.calisthenicscoach.data.UserPreferencesRepository
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 import com.rushd.calisthenicscoach.domain.SamplePrograms
+import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
 import com.rushd.calisthenicscoach.domain.WorkoutPlan
 import kotlinx.coroutines.delay
@@ -118,13 +119,14 @@ private fun MainExperience(profile: UserProfile) {
         ) {
             composable(Tab.Today.route) {
                 TodayScreen(
-                    onStart = { nav.navigate("workout/${SamplePrograms.foundation.id}") },
+                    profile = profile,
+                    onStart = { nav.navigate("workout/${ProgramEngine.build(profile).weeklyDays.firstOrNull { it.planId != null }?.planId ?: SamplePrograms.foundation.id}") },
                     onPlan = { nav.navigate(Tab.Plan.route) },
                     onLibrary = { nav.navigate(Tab.Library.route) }
                 )
             }
             composable(Tab.Plan.route) {
-                PlanScreen(onOpenWorkout = { nav.navigate("workout/${it.id}") })
+                PlanScreen(profile = profile, onOpenWorkout = { nav.navigate("workout/${it.id}") })
             }
             composable(Tab.Library.route) { ExerciseLibraryScreen() }
             composable(Tab.Progress.route) { ProgressScreen() }
@@ -143,10 +145,14 @@ private fun MainExperience(profile: UserProfile) {
 
 @Composable
 private fun TodayScreen(
+    profile: UserProfile,
     onStart: () -> Unit,
     onPlan: () -> Unit,
     onLibrary: () -> Unit
 ) {
+    val blueprint = remember(profile) { ProgramEngine.build(profile) }
+    val nextSession = blueprint.weeklyDays.firstOrNull { it.planId != null }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
@@ -181,7 +187,16 @@ private fun TodayScreen(
             }
         }
 
-        item { HeroWorkoutCard(onStart = onStart) }
+        item {
+            HeroWorkoutCard(
+                title = nextSession?.title ?: "جلسة اليوم",
+                subtitle = nextSession?.subtitle ?: blueprint.phaseTitle,
+                minutes = profile.sessionMinutes,
+                sessionCount = blueprint.weeklyDays.count { it.planId != null },
+                level = profile.experience,
+                onStart = onStart
+            )
+        }
 
         item {
             SectionHeader(
@@ -198,19 +213,19 @@ private fun TodayScreen(
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.CheckCircle,
-                    value = "2/3",
+                    value = "${blueprint.weeklyDays.count { it.planId != null }}",
                     label = "جلسات الأسبوع"
                 )
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Schedule,
-                    value = "38",
+                    value = "${profile.sessionMinutes}",
                     label = "دقيقة اليوم"
                 )
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.TrendingUp,
-                    value = "35%",
+                    value = "${(blueprint.progress * 100).toInt()}%",
                     label = "تقدم المرحلة"
                 )
             }
@@ -266,7 +281,14 @@ private fun TodayScreen(
 }
 
 @Composable
-private fun HeroWorkoutCard(onStart: () -> Unit) {
+private fun HeroWorkoutCard(
+    title: String,
+    subtitle: String,
+    minutes: Int,
+    sessionCount: Int,
+    level: String,
+    onStart: () -> Unit
+) {
     val gradient = Brush.linearGradient(
         listOf(
             MaterialTheme.colorScheme.primaryContainer,
@@ -290,7 +312,7 @@ private fun HeroWorkoutCard(onStart: () -> Unit) {
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Text(
-                        "اليوم · الجلسة 2 من 3",
+                        "اليوم · الجلسة 1 من $sessionCount",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
@@ -302,22 +324,22 @@ private fun HeroWorkoutCard(onStart: () -> Unit) {
 
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
-                    "Foundation A",
+                    title,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    "دفع · سحب · أرجل · جذع",
+                    subtitle,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
                 )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                InfoChip(Icons.Default.Schedule, "38 دقيقة")
+                InfoChip(Icons.Default.Schedule, "$minutes دقيقة")
                 InfoChip(Icons.Default.FitnessCenter, "5 تمارين")
-                InfoChip(Icons.Default.Speed, "مبتدئ")
+                InfoChip(Icons.Default.Speed, level)
             }
 
             Button(
@@ -391,16 +413,30 @@ private fun WeekOverview() {
 }
 
 @Composable
-private fun PlanScreen(onOpenWorkout: (WorkoutPlan) -> Unit) {
-    val weekDays = listOf(
-        WeekDay("السبت", "Foundation A", "38 دقيقة · الجلسة الأساسية", DayState.Done, SamplePrograms.foundation.id),
-        WeekDay("الأحد", "استشفاء", "مشي خفيف + إطالات", DayState.Rest),
-        WeekDay("الاثنين", "Strength B", "50 دقيقة · قوة أساسية", DayState.Today, SamplePrograms.strength.id),
-        WeekDay("الثلاثاء", "راحة", "تعافٍ ونوم جيد", DayState.Rest),
-        WeekDay("الأربعاء", "Foundation A", "38 دقيقة · تكرار تقني", DayState.Upcoming, SamplePrograms.foundation.id),
-        WeekDay("الخميس", "مهارة قصيرة", "10–15 دقيقة · Handstand / L-sit", DayState.Upcoming),
-        WeekDay("الجمعة", "راحة", "استعد للأسبوع التالي", DayState.Rest)
-    )
+private fun PlanScreen(profile: UserProfile, onOpenWorkout: (WorkoutPlan) -> Unit) {
+    val blueprint = remember(profile) { ProgramEngine.build(profile) }
+    val dayNames = listOf("السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة")
+    val sessionsByDay = blueprint.weeklyDays.associateBy { it.dayNumber }
+    val firstTrainingDay = blueprint.weeklyDays.firstOrNull { it.planId != null }?.dayNumber
+    val weekDays = (1..7).map { dayNumber ->
+        val session = sessionsByDay[dayNumber]
+        if (session != null) {
+            WeekDay(
+                day = dayNames[dayNumber - 1],
+                title = session.title,
+                subtitle = session.subtitle,
+                state = if (dayNumber == firstTrainingDay) DayState.Today else DayState.Upcoming,
+                planId = session.planId
+            )
+        } else {
+            WeekDay(
+                day = dayNames[dayNumber - 1],
+                title = "استشفاء / راحة",
+                subtitle = "حركة خفيفة ونوم جيد",
+                state = DayState.Rest
+            )
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -414,7 +450,7 @@ private fun PlanScreen(onOpenWorkout: (WorkoutPlan) -> Unit) {
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "الأسبوع 2 من 6 · تأسيس القوة والتحكم",
+                "الأسبوع ${blueprint.week} من ${blueprint.totalWeeks} · ${blueprint.phaseTitle}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -435,14 +471,14 @@ private fun PlanScreen(onOpenWorkout: (WorkoutPlan) -> Unit) {
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.weight(1f))
-                        Text("35%", fontWeight = FontWeight.Bold)
+                        Text("${(blueprint.progress * 100).toInt()}%", fontWeight = FontWeight.Bold)
                     }
                     LinearProgressIndicator(
-                        progress = { 0.35f },
+                        progress = { blueprint.progress },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text(
-                        "الهدف الحالي: تثبيت التقنية وبناء قاعدة لـ Pull-up وDip.",
+                        blueprint.rationale,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
