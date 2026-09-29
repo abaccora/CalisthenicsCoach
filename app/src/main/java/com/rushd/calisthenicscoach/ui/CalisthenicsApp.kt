@@ -36,6 +36,7 @@ import androidx.navigation.navArgument
 import com.rushd.calisthenicscoach.data.AppDatabase
 import com.rushd.calisthenicscoach.data.WorkoutHistory
 import com.rushd.calisthenicscoach.data.SetPerformance
+import com.rushd.calisthenicscoach.data.ExerciseHistoryStat
 import com.rushd.calisthenicscoach.data.ActiveWorkoutSession
 import com.rushd.calisthenicscoach.data.WorkoutSessionRepository
 import com.rushd.calisthenicscoach.data.UserPreferencesRepository
@@ -115,7 +116,11 @@ fun CalisthenicsApp() {
 
 @Composable
 private fun MainExperience(profile: UserProfile) {
-    val blueprint = remember(profile) { ProgramEngine.build(profile) }
+    val context = LocalContext.current
+    val sessionRepo = remember { WorkoutSessionRepository(context) }
+    val history by sessionRepo.history.collectAsStateWithLifecycle(initialValue = emptyList())
+    val effortHistory = remember(history) { history.associate { item -> item.exerciseName to item.avgRpe } }
+    val blueprint = remember(profile, effortHistory) { ProgramEngine.build(profile, effortHistory) }
     val nav = rememberNavController()
     val tabs = listOf(Tab.Today, Tab.Plan, Tab.Library, Tab.Progress)
     val entry by nav.currentBackStackEntryAsState()
@@ -156,6 +161,7 @@ private fun MainExperience(profile: UserProfile) {
             composable(Tab.Today.route) {
                 TodayScreen(
                     profile = profile,
+                    effortHistory = effortHistory,
                     onStart = {
                         val firstPlan = blueprint.weeklyDays.firstOrNull { it.planId != null }?.planId
                             ?: blueprint.plans.first().id
@@ -166,7 +172,7 @@ private fun MainExperience(profile: UserProfile) {
                 )
             }
             composable(Tab.Plan.route) {
-                PlanScreen(profile = profile, onOpenWorkout = { nav.navigate("workout/${it.id}") })
+                PlanScreen(profile = profile, effortHistory = effortHistory, onOpenWorkout = { nav.navigate("workout/${it.id}") })
             }
             composable(Tab.Library.route) { ExerciseLibraryScreen() }
             composable(Tab.Progress.route) { ProgressScreen() }
@@ -185,11 +191,12 @@ private fun MainExperience(profile: UserProfile) {
 @Composable
 private fun TodayScreen(
     profile: UserProfile,
+    effortHistory: Map<String, Double>,
     onStart: () -> Unit,
     onPlan: () -> Unit,
     onLibrary: () -> Unit
 ) {
-    val blueprint = remember(profile) { ProgramEngine.build(profile) }
+    val blueprint = remember(profile, effortHistory) { ProgramEngine.build(profile, effortHistory) }
     val nextSession = blueprint.weeklyDays.firstOrNull { it.planId != null }
 
     LazyColumn(
@@ -455,8 +462,12 @@ private fun WeekOverview(trainingDays: Set<Int>) {
 }
 
 @Composable
-private fun PlanScreen(profile: UserProfile, onOpenWorkout: (WorkoutPlan) -> Unit) {
-    val blueprint = remember(profile) { ProgramEngine.build(profile) }
+private fun PlanScreen(
+    profile: UserProfile,
+    effortHistory: Map<String, Double>,
+    onOpenWorkout: (WorkoutPlan) -> Unit
+) {
+    val blueprint = remember(profile, effortHistory) { ProgramEngine.build(profile, effortHistory) }
     val dayNames = listOf("السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة")
     val sessionsByDay = blueprint.weeklyDays.associateBy { it.dayNumber }
     val firstTrainingDay = blueprint.weeklyDays.firstOrNull { it.planId != null }?.dayNumber
