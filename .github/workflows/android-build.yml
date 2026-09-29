@@ -26,6 +26,7 @@ jobs:
         with:
           path: app/src/main/res/raw
           key: calisthenics-videos-v1
+          save-always: true
 
       - name: Download exercise video library
         if: steps.video-cache.outputs.cache-hit != 'true'
