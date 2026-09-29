@@ -5,6 +5,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,7 +20,15 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache exercise videos
+        id: video-cache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/res/raw
+          key: calisthenics-videos-v1
+
       - name: Download exercise video library
+        if: steps.video-cache.outputs.cache-hit != 'true'
         run: |
           python -m pip install --disable-pip-version-check gdown==5.2.0
           python scripts/download_videos.py
@@ -30,14 +42,13 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Prepare Android SDK 36
-        shell: bash
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android SDK 37
+        run: sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
