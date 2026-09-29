@@ -211,7 +211,7 @@ private fun TodayScreen(
             )
         }
 
-        item { WeekOverview() }
+        item { WeekOverview(blueprint.weeklyDays.map { it.dayNumber }.toSet()) }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -366,25 +366,21 @@ private fun HeroWorkoutCard(
 }
 
 @Composable
-private fun WeekOverview() {
-    val days = listOf(
-        Triple("س", "1", DayState.Done),
-        Triple("ح", "2", DayState.Rest),
-        Triple("ن", "3", DayState.Today),
-        Triple("ث", "4", DayState.Rest),
-        Triple("ر", "5", DayState.Upcoming),
-        Triple("خ", "6", DayState.Rest),
-        Triple("ج", "7", DayState.Rest)
-    )
+private fun WeekOverview(trainingDays: Set<Int>) {
+    val labels = listOf("س", "ح", "ن", "ث", "ر", "خ", "ج")
+    val currentTrainingDay = trainingDays.minOrNull()
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        days.forEach { (day, number, state) ->
+        (1..7).forEach { dayNumber ->
+            val isTraining = dayNumber in trainingDays
+            val isCurrent = dayNumber == currentTrainingDay
+
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    day,
+                    labels[dayNumber - 1],
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -392,20 +388,25 @@ private fun WeekOverview() {
                 Surface(
                     modifier = Modifier.size(44.dp),
                     shape = CircleShape,
-                    color = when (state) {
-                        DayState.Done -> MaterialTheme.colorScheme.primaryContainer
-                        DayState.Today -> MaterialTheme.colorScheme.primary
+                    color = when {
+                        isCurrent -> MaterialTheme.colorScheme.primary
+                        isTraining -> MaterialTheme.colorScheme.primaryContainer
                         else -> MaterialTheme.colorScheme.surfaceVariant
                     }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        if (state == DayState.Done) {
-                            Icon(Icons.Default.Check, contentDescription = null)
+                        if (isTraining && !isCurrent) {
+                            Icon(
+                                Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         } else {
                             Text(
-                                number,
+                                dayNumber.toString(),
                                 fontWeight = FontWeight.Bold,
-                                color = if (state == DayState.Today)
+                                color = if (isCurrent)
                                     MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
