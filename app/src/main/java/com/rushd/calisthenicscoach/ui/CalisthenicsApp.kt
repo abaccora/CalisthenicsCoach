@@ -168,7 +168,8 @@ private fun MainExperience(profile: UserProfile) {
                         nav.navigate("workout/$firstPlan")
                     },
                     onPlan = { nav.navigate(Tab.Plan.route) },
-                    onLibrary = { nav.navigate(Tab.Library.route) }
+                    onLibrary = { nav.navigate(Tab.Library.route) },
+                    onProfile = { nav.navigate("profile") }
                 )
             }
             composable(Tab.Plan.route) {
@@ -176,6 +177,13 @@ private fun MainExperience(profile: UserProfile) {
             }
             composable(Tab.Library.route) { ExerciseLibraryScreen() }
             composable(Tab.Progress.route) { ProgressScreen() }
+            composable("profile") {
+                AthleteProfileScreen(
+                    profile = profile,
+                    history = history,
+                    onClose = { nav.popBackStack() }
+                )
+            }
             composable(
                 "workout/{id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType })
@@ -194,7 +202,8 @@ private fun TodayScreen(
     effortHistory: Map<String, Double>,
     onStart: () -> Unit,
     onPlan: () -> Unit,
-    onLibrary: () -> Unit
+    onLibrary: () -> Unit,
+    onProfile: () -> Unit
 ) {
     val blueprint = remember(profile, effortHistory) { ProgramEngine.build(profile, effortHistory) }
     val nextSession = blueprint.weeklyDays.firstOrNull { it.planId != null }
@@ -224,7 +233,7 @@ private fun TodayScreen(
                 Surface(
                     modifier = Modifier
                         .size(46.dp)
-                        .clickable { },
+                        .clickable(onClick = onProfile),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
@@ -1645,4 +1654,125 @@ private fun tabIcon(tab: Tab) = when (tab) {
     Tab.Plan -> Icons.Default.CalendarMonth
     Tab.Library -> Icons.Default.VideoLibrary
     Tab.Progress -> Icons.Default.Insights
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AthleteProfileScreen(
+    profile: UserProfile,
+    history: List<ExerciseHistoryStat>,
+    onClose: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("الملف الرياضي", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Text(
+                    "بياناتك المحفوظة",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    "يستخدم التطبيق هذه البيانات مع سجل التمرين لتعديل الخطة.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            item {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Column(
+                        Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ProfileLine("العمر", "${profile.age} سنة")
+                        ProfileLine("الطول", "${profile.heightCm} سم")
+                        ProfileLine("الوزن", "${profile.weightKg} كغ")
+                        ProfileLine("النشاط", profile.activityLevel)
+                        ProfileLine("الهدف", displayProfileValue(profile.goal))
+                        ProfileLine("أيام التدريب", "${profile.daysPerWeek} أيام أسبوعيًا")
+                        ProfileLine("مدة الجلسة", "${profile.sessionMinutes} دقيقة")
+                    }
+                }
+            }
+            item {
+                Text(
+                    "التكيف مع الأداء",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (history.isEmpty())
+                        "سيبدأ التطبيق بتعديل حجم التدريب والراحة بعد تسجيل عدة مجموعات."
+                    else
+                        "تم تسجيل ${history.sumOf { it.totalSets }} مجموعة. تستخدم قيم RPE المسجلة لتخفيف أو زيادة حجم التدريب في الجلسات التالية.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (history.isNotEmpty()) {
+                items(history.take(8)) { item ->
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(item.exerciseName) },
+                            supportingContent = {
+                                Text("أفضل تكرارات ${item.bestReps} · متوسط RPE ${String.format("%.1f", item.avgRpe)}")
+                            },
+                            leadingContent = {
+                                Icon(Icons.Default.Insights, contentDescription = null)
+                            }
+                        )
+                    }
+                }
+            }
+            item {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Text(
+                        "الحساب السحابي والمزامنة بين الأجهزة غير مفعّلين في هذه النسخة. بياناتك محفوظة محليًا على هذا الجهاز.",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileLine(label: String, value: String) {
+    Row {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.weight(1f))
+        Text(value, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun displayProfileValue(value: String): String = when (value) {
+    "Pull-up" -> "العقلة"
+    "Muscle-up" -> "المسل أب"
+    "Handstand" -> "الوقوف على اليدين"
+    "Front Lever" -> "الفرونت ليفر"
+    "Planche" -> "البلانش"
+    else -> value
 }
