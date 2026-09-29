@@ -270,12 +270,21 @@ private fun ChoiceStep(
     onSelect: (String) -> Unit
 ) {
     StepHeader(eyebrow, title, subtitle)
-    options.forEach { option ->
-        SelectCard(
-            title = displayOption(option),
-            selected = option == selected,
-            onClick = { onSelect(option) }
-        )
+    options.chunked(2).forEach { rowItems ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            rowItems.forEach { option ->
+                SelectCard(
+                    modifier = Modifier.weight(1f),
+                    title = displayOption(option),
+                    selected = option == selected,
+                    onClick = { onSelect(option) }
+                )
+            }
+            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+        }
     }
 }
 
@@ -290,13 +299,22 @@ private fun MultiChoiceStep(
     helper: String
 ) {
     StepHeader(eyebrow, title, subtitle)
-    options.forEach { option ->
-        SelectCard(
-            title = displayOption(option),
-            selected = option in selected,
-            onClick = { onToggle(option) },
-            radio = false
-        )
+    options.chunked(2).forEach { rowItems ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            rowItems.forEach { option ->
+                SelectCard(
+                    modifier = Modifier.weight(1f),
+                    title = displayOption(option),
+                    selected = option in selected,
+                    onClick = { onToggle(option) },
+                    radio = false
+                )
+            }
+            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+        }
     }
     Text(
         helper,
@@ -457,13 +475,14 @@ private fun StepHeader(eyebrow: String, title: String, subtitle: String) {
 
 @Composable
 private fun SelectCard(
+    modifier: Modifier = Modifier,
     title: String,
     selected: Boolean,
     onClick: () -> Unit,
     radio: Boolean = true
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
@@ -472,7 +491,7 @@ private fun SelectCard(
         else MaterialTheme.colorScheme.surface
     ) {
         Row(
-            Modifier.padding(18.dp),
+            Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
