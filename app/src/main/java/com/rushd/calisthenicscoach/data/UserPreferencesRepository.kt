@@ -13,6 +13,7 @@ class UserPreferencesRepository(private val context: Context) {
 
     private object Keys {
         val completed = booleanPreferencesKey("completed")
+        val profileVersion = intPreferencesKey("profile_version")
         val age = intPreferencesKey("age")
         val height = intPreferencesKey("height_cm")
         val weight = intPreferencesKey("weight_kg")
@@ -31,7 +32,7 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     val profile: Flow<UserProfile?> = context.userProfileStore.data.map { p ->
-        if (p[Keys.completed] != true) null else UserProfile(
+        if (p[Keys.completed] != true || (p[Keys.profileVersion] ?: 0) < 3) null else UserProfile(
             age = p[Keys.age] ?: 30,
             heightCm = p[Keys.height] ?: 175,
             weightKg = p[Keys.weight] ?: 75,
@@ -54,6 +55,7 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun save(profile: UserProfile) {
         context.userProfileStore.edit { p ->
             p[Keys.completed] = true
+            p[Keys.profileVersion] = 3
             p[Keys.age] = profile.age
             p[Keys.height] = profile.heightCm
             p[Keys.weight] = profile.weightKg
