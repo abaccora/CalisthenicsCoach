@@ -30,14 +30,14 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Prepare Android SDK 37
+      - name: Prepare Android SDK 36
         shell: bash
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           echo "ANDROID_HOME=$ANDROID_HOME"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" 'platforms;android-37' 'build-tools;36.0.0'
+          "$SDKMANAGER" 'platforms;android-36' 'build-tools;36.0.0'
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
