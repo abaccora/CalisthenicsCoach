@@ -107,11 +107,7 @@ object ProgramEngine {
     }
 
     private fun strengthExercises(profile: UserProfile, level: String): List<Exercise> {
-        val pull = when {
-            "Pull-up Bar" !in profile.equipment -> "Inverted Row"
-            profile.maxPullUps >= 5 -> "Regular Pull Up"
-            else -> "Parallel Grip Pull Up"
-        }
+        val pull = backChoice(profile)
 
         val push = when {
             "ألم/انزعاج في الكتف" in profile.limitations -> "Regular Push Up"
@@ -124,7 +120,18 @@ object ProgramEngine {
         val shoulder = if ("ألم/انزعاج في المعصم" in profile.limitations) "Plank Shoulder Tap" else "Pike Push Up"
 
         return listOf(
-            ex(pull, backArabic(pull), if (level == "متوسط") 4 else 3, if (pull.contains("Pull Up")) "3–6" else "6–10", 90, "ابدأ بتنشيط لوح الكتف قبل السحب"),
+            ex(
+                pull,
+                backArabic(pull),
+                if (level == "متوسط") 4 else 3,
+                when {
+                    pull.contains("Pull Up") -> "3–6"
+                    pull == "Alternating Superman" -> "8/جهة"
+                    else -> "6–10"
+                },
+                90,
+                "ابدأ الحركة بتحكم وتوقف قبل فقدان الوضعية"
+            ),
             ex(push, pushArabic(push), if (level == "متوسط") 4 else 3, "6–10", 90, "حافظ على الكتف منخفضًا والجذع ثابتًا"),
             ex(leg, legArabic(leg), 3, if (leg == "Hip Thrust") "10–15" else "8/جهة", 75, "حركة كاملة دون فقدان التحكم"),
             ex(shoulder, shoulderArabic(shoulder), 3, "6–10", 75, "أوقف المجموعة قبل انهيار التقنية"),
@@ -143,13 +150,13 @@ object ProgramEngine {
             )
             "Pull-up", "Muscle-up", "Front Lever" -> listOf(
                 ex(backChoice(profile), backArabic(backChoice(profile)), 4, "4–8", 90, "ركز على سحب لوحي الكتف أولًا"),
-                ex("Inverted Row", "سحب أفقي", 3, "8–12", 60, "اجعل الجسم خطًا واحدًا"),
+                ex(backAccessory(profile), backArabic(backAccessory(profile)), 3, if (backAccessory(profile) == "Alternating Superman") "8/جهة" else "8–12", 60, "حافظ على الجذع ثابتًا والحركة متحكمًا بها"),
                 ex("Alternating Superman", "سوبرمان متبادل", 3, "8/جهة", 45, "ارفع بمدى صغير ومتحكم"),
                 ex("Body Saw", "بودي سو", 3, "8–12", 45, "ثبّت الجذع طوال الحركة")
             )
             else -> listOf(
                 ex("Pike Push Up", "ضغط بايك", 3, "6–10", 60, "حافظ على تحكم كامل"),
-                ex("Inverted Row", "سحب أفقي", 3, "8–12", 60, "اسحب الصدر باتجاه نقطة التثبيت"),
+                ex(backAccessory(profile), backArabic(backAccessory(profile)), 3, if (backAccessory(profile) == "Alternating Superman") "8/جهة" else "8–12", 60, "نفذ الحركة ببطء ومن دون اندفاع"),
                 ex("Bicycle Crunch", "كرنش الدراجة", 3, "10/جهة", 45, "تحرك ببطء دون شد الرقبة"),
                 ex("Cat Cow Stretch", "إطالة القطة والبقرة", 2, "8–10", 30, "نسق الحركة مع التنفس")
             )
@@ -164,11 +171,24 @@ object ProgramEngine {
             )
         }
 
-    private fun backChoice(profile: UserProfile): String =
-        if ("Pull-up Bar" in profile.equipment && profile.maxPullUps >= 3) "Regular Pull Up" else "Inverted Row"
+    private fun backChoice(profile: UserProfile): String = when {
+        "Pull-up Bar" in profile.equipment && profile.maxPullUps >= 3 -> "Regular Pull Up"
+        "Pull-up Bar" in profile.equipment -> "Parallel Grip Pull Up"
+        "Rings" in profile.equipment -> "Inverted Row"
+        else -> "Alternating Superman"
+    }
+
+    private fun backAccessory(profile: UserProfile): String = when {
+        "Rings" in profile.equipment || "Pull-up Bar" in profile.equipment -> "Inverted Row"
+        "ألم/انزعاج أسفل الظهر" in profile.limitations -> "Cat Cow Stretch"
+        else -> "Alternating Superman"
+    }
 
     private fun legChoice(profile: UserProfile): String =
-        if ("ألم/انزعاج في الركبة" in profile.limitations) "Hip Thrust" else "Split Squat"
+        if ("ألم/انزعاج في الركبة" in profile.limitations || bodyLoadIndex(profile) >= 30.0)
+            "Hip Thrust"
+        else
+            "Split Squat"
 
     private fun level(profile: UserProfile): String = when {
         profile.maxPullUps >= 8 && profile.maxDips >= 10 && profile.maxPushUps >= 25 -> "متوسط"
@@ -233,6 +253,8 @@ object ProgramEngine {
         "Regular Pull Up" -> "عقلة"
         "Parallel Grip Pull Up" -> "عقلة بقبضة متوازية"
         "Inverted Row" -> "سحب أفقي"
+        "Alternating Superman" -> "سوبرمان متبادل"
+        "Cat Cow Stretch" -> "إطالة القطة والبقرة"
         else -> "تمرين ظهر"
     }
 
