@@ -39,7 +39,7 @@ object ProgramEngine {
         }
 
         return TrainingBlueprint(
-            title = "${profile.goal} · $level",
+            title = "${goalArabic(profile.goal)} · $level",
             phaseTitle = phaseTitle(profile, level),
             week = 1,
             totalWeeks = totalWeeks,
@@ -229,8 +229,8 @@ object ProgramEngine {
     }
 
     private fun rationale(profile: UserProfile, level: String, recovery: RecoveryProfile): String {
-        val eq = if (profile.equipment.isEmpty()) "وزن الجسم" else profile.equipment.joinToString("، ")
-        return "بُنيت الخطة من عمر ${profile.age} سنة، مستوى $level، نشاط ${profile.activityLevel}، ${profile.daysPerWeek} أيام، ${profile.sessionMinutes} دقيقة، وهدف ${profile.goal}. المعدات: $eq. الراحة الإضافية ${recovery.extraRestSec} ثانية."
+        val eq = if (profile.equipment.isEmpty()) "وزن الجسم" else profile.equipment.joinToString("، ") { equipmentArabic(it) }
+        return "بُنيت الخطة لعمر ${profile.age} سنة، مستوى $level، نشاط ${profile.activityLevel}، ${profile.daysPerWeek} أيام أسبوعيًا، و${profile.sessionMinutes} دقيقة للجلسة. الهدف: ${goalArabic(profile.goal)}. المعدات: $eq."
     }
 
     private fun goalSubtitle(goal: String): String = when (goal) {
@@ -244,7 +244,26 @@ object ProgramEngine {
 
     private fun skillSubtitle(profile: UserProfile): String =
         if (profile.targetSkills.isEmpty()) "قوة نوعية · تحكم · مرونة"
-        else profile.targetSkills.take(2).joinToString(" + ")
+        else profile.targetSkills.take(2).joinToString(" + ") { goalArabic(it) }
+
+    private fun goalArabic(value: String): String = when (value) {
+        "Pull-up" -> "العقلة"
+        "Muscle-up" -> "المسل أب"
+        "Handstand" -> "الوقوف على اليدين"
+        "Front Lever" -> "الفرونت ليفر"
+        "Planche" -> "البلانش"
+        "L-sit" -> "إل-سِت"
+        else -> value
+    }
+
+    private fun equipmentArabic(value: String): String = when (value) {
+        "Pull-up Bar" -> "بار العقلة"
+        "Parallel Bars" -> "المتوازي"
+        "Rings" -> "الحلقات"
+        "Resistance Band" -> "حزام مقاومة"
+        "Bench" -> "مقعد"
+        else -> value
+    }
 
     private fun ex(name: String, ar: String, sets: Int, reps: String, rest: Int, cue: String) =
         Exercise(name, ar, sets, reps, rest, cue)
