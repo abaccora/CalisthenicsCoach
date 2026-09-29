@@ -34,6 +34,7 @@ import androidx.navigation.navArgument
 import com.rushd.calisthenicscoach.data.AppDatabase
 import com.rushd.calisthenicscoach.data.WorkoutHistory
 import com.rushd.calisthenicscoach.data.UserPreferencesRepository
+import com.rushd.calisthenicscoach.data.OnboardingDraft
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 import com.rushd.calisthenicscoach.domain.SamplePrograms
@@ -41,6 +42,7 @@ import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
 import com.rushd.calisthenicscoach.domain.WorkoutPlan
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private sealed class Tab(val route: String, val label: String) {
@@ -64,19 +66,46 @@ private data class WeekDay(
 fun CalisthenicsApp() {
     val context = LocalContext.current
     val repository = remember { UserPreferencesRepository(context) }
-    val profile by repository.profile.collectAsStateWithLifecycle(initialValue = UserProfile())
     val scope = rememberCoroutineScope()
 
-    if (profile?.onboardingCompleted != true) {
+    var loaded by remember { mutableStateOf(false) }
+    var savedProfile by remember { mutableStateOf<UserProfile?>(null) }
+    var draft by remember { mutableStateOf(OnboardingDraft()) }
+
+    LaunchedEffect(repository) {
+        savedProfile = repository.profile.first()
+        draft = repository.onboardingDraft.first()
+        loaded = true
+    }
+
+    if (!loaded) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (savedProfile?.onboardingCompleted != true) {
         OnboardingScreen(
+            initialDraft = draft,
+            onDraftChange = { step, profile ->
+                draft = OnboardingDraft(step, profile)
+                scope.launch { repository.saveDraft(step, profile) }
+            },
             onComplete = { completed ->
-                scope.launch { repository.save(completed) }
+                scope.launch {
+                    repository.save(completed)
+                    savedProfile = completed
+                }
             }
         )
         return
     }
 
-    MainExperience(profile = profile!!)
+    MainExperience(profile = savedProfile!!)
 }
 
 @Composable
