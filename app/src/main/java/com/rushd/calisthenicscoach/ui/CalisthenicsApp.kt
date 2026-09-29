@@ -80,6 +80,7 @@ fun CalisthenicsApp() {
 
 @Composable
 private fun MainExperience(profile: UserProfile) {
+    val blueprint = remember(profile) { ProgramEngine.build(profile) }
     val nav = rememberNavController()
     val tabs = listOf(Tab.Today, Tab.Plan, Tab.Library, Tab.Progress)
     val entry by nav.currentBackStackEntryAsState()
@@ -120,7 +121,11 @@ private fun MainExperience(profile: UserProfile) {
             composable(Tab.Today.route) {
                 TodayScreen(
                     profile = profile,
-                    onStart = { nav.navigate("workout/${ProgramEngine.build(profile).weeklyDays.firstOrNull { it.planId != null }?.planId ?: SamplePrograms.foundation.id}") },
+                    onStart = {
+                        val firstPlan = blueprint.weeklyDays.firstOrNull { it.planId != null }?.planId
+                            ?: blueprint.plans.first().id
+                        nav.navigate("workout/$firstPlan")
+                    },
                     onPlan = { nav.navigate(Tab.Plan.route) },
                     onLibrary = { nav.navigate(Tab.Library.route) }
                 )
@@ -135,8 +140,7 @@ private fun MainExperience(profile: UserProfile) {
                 arguments = listOf(navArgument("id") { type = NavType.StringType })
             ) { backStack ->
                 val id = backStack.arguments?.getString("id")
-                val plan = listOf(SamplePrograms.foundation, SamplePrograms.strength)
-                    .firstOrNull { it.id == id } ?: SamplePrograms.foundation
+                val plan = blueprint.plans.firstOrNull { it.id == id } ?: blueprint.plans.first()
                 WorkoutScreen(plan = plan, onDone = { nav.popBackStack() })
             }
         }
@@ -495,11 +499,7 @@ private fun PlanScreen(profile: UserProfile, onOpenWorkout: (WorkoutPlan) -> Uni
 
         items(weekDays) { item ->
             PlanDayCard(item = item) {
-                val plan = when (item.planId) {
-                    SamplePrograms.foundation.id -> SamplePrograms.foundation
-                    SamplePrograms.strength.id -> SamplePrograms.strength
-                    else -> null
-                }
+                val plan = blueprint.plans.firstOrNull { it.id == item.planId }
                 plan?.let(onOpenWorkout)
             }
         }
