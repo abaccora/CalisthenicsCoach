@@ -209,18 +209,20 @@ private fun TodayScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "جلسة واضحة. تقدم محسوب.",
+                        "تمرينك اليوم جاهز. ابدأ من حيث توقفت.",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 Surface(
-                    modifier = Modifier.size(46.dp),
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clickable { },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, contentDescription = null)
+                        Icon(Icons.Default.Person, contentDescription = "الملف الرياضي")
                     }
                 }
             }
@@ -239,8 +241,8 @@ private fun TodayScreen(
 
         item {
             SectionHeader(
-                title = "أين أنت في الأسبوع؟",
-                action = "الخطة كاملة",
+                title = "جدول هذا الأسبوع",
+                action = "عرض الخطة",
                 onAction = onPlan
             )
         }
@@ -272,7 +274,7 @@ private fun TodayScreen(
 
         item {
             SectionHeader(
-                title = "تعلم الحركة قبل تكرارها",
+                title = "راجع طريقة أداء التمارين",
                 action = "المكتبة",
                 onAction = onLibrary
             )
@@ -307,7 +309,7 @@ private fun TodayScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            "الفيديو الصحيح يظهر داخل الجلسة نفسها، ويمكن فتح المكتبة في أي وقت.",
+                            "شاهد طريقة الأداء الصحيحة داخل الجلسة أو من مكتبة التمارين.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
                         )
