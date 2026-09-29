@@ -6,8 +6,8 @@ on:
     branches: [ main ]
 
 concurrency:
-  group: android-apk-${{ github.ref }}
-  cancel-in-progress: true
+  group: android-apk-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   build:
