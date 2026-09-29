@@ -2,12 +2,14 @@ package com.rushd.calisthenicscoach.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,23 +23,38 @@ import com.rushd.calisthenicscoach.domain.UserProfile
 @Composable
 fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
     var step by remember { mutableIntStateOf(0) }
+
+    var age by remember { mutableIntStateOf(30) }
+    var height by remember { mutableIntStateOf(175) }
+    var weight by remember { mutableIntStateOf(75) }
+    var activity by remember { mutableStateOf("متوسط") }
+
     var goal by remember { mutableStateOf("قوة عامة") }
     var experience by remember { mutableStateOf("مبتدئ") }
+
     var days by remember { mutableIntStateOf(3) }
     var minutes by remember { mutableIntStateOf(45) }
+
     var equipment by remember { mutableStateOf(setOf<String>()) }
+    var limitations by remember { mutableStateOf(setOf<String>()) }
     var skills by remember { mutableStateOf(setOf<String>()) }
+
     var pushUps by remember { mutableIntStateOf(10) }
     var pullUps by remember { mutableIntStateOf(0) }
     var dips by remember { mutableIntStateOf(0) }
     var hollow by remember { mutableIntStateOf(20) }
 
     val draft = UserProfile(
+        age = age,
+        heightCm = height,
+        weightKg = weight,
+        activityLevel = activity,
         goal = goal,
         experience = experience,
         daysPerWeek = days,
         sessionMinutes = minutes,
         equipment = equipment,
+        limitations = limitations,
         targetSkills = skills,
         maxPushUps = pushUps,
         maxPullUps = pullUps,
@@ -49,22 +66,31 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (step > 0) {
                         IconButton(onClick = { step-- }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
                         }
                     }
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        "${step + 1} / 5",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "إعداد خطتك",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "الخطوة ${step + 1} من 7",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
                 LinearProgressIndicator(
-                    progress = { (step + 1) / 5f },
+                    progress = { (step + 1) / 7f },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -73,7 +99,7 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
             Surface(tonalElevation = 3.dp) {
                 Button(
                     onClick = {
-                        if (step < 4) step++ else onComplete(draft)
+                        if (step < 6) step++ else onComplete(draft)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -81,12 +107,12 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
                         .height(58.dp)
                 ) {
                     Text(
-                        if (step < 4) "متابعة" else "أنشئ خطتي",
+                        if (step < 6) "متابعة" else "أنشئ خطتي الشخصية",
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(8.dp))
                     Icon(
-                        if (step < 4) Icons.Default.ArrowForward else Icons.Default.Check,
+                        if (step < 6) Icons.AutoMirrored.Filled.ArrowForward else Icons.Default.Check,
                         contentDescription = null
                     )
                 }
@@ -97,19 +123,32 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when (step) {
-                0 -> ChoiceStep(
-                    eyebrow = "الهدف",
-                    title = "ما الذي تريد الوصول إليه؟",
-                    subtitle = "نستخدم الهدف لاختيار نوع الجلسات وتسلسل المهارات.",
-                    options = listOf("قوة عامة", "Muscle-up", "Pull-up", "Handstand", "Front Lever", "Planche"),
+                0 -> BodyProfileStep(
+                    age = age,
+                    height = height,
+                    weight = weight,
+                    activity = activity,
+                    onAge = { age = it.coerceIn(14, 85) },
+                    onHeight = { height = it.coerceIn(130, 220) },
+                    onWeight = { weight = it.coerceIn(35, 200) },
+                    onActivity = { activity = it }
+                )
+
+                1 -> ChoiceStep(
+                    eyebrow = "الهدف الرئيسي",
+                    title = "ما النتيجة التي تريد بناء البرنامج حولها؟",
+                    subtitle = "الهدف يغير توزيع الدفع والسحب والجذع والمهارة داخل الأسبوع.",
+                    options = listOf("قوة عامة", "Pull-up", "Muscle-up", "Handstand", "Front Lever", "Planche"),
                     selected = goal,
                     onSelect = { goal = it }
                 )
-                1 -> AssessmentStep(
+
+                2 -> AssessmentStep(
                     pushUps = pushUps,
                     pullUps = pullUps,
                     dips = dips,
@@ -121,22 +160,43 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
                     experience = experience,
                     onExperience = { experience = it }
                 )
-                2 -> ScheduleStep(
+
+                3 -> ScheduleStep(
                     days = days,
                     minutes = minutes,
                     onDays = { days = it },
                     onMinutes = { minutes = it }
                 )
-                3 -> MultiChoiceStep(
+
+                4 -> MultiChoiceStep(
                     eyebrow = "المعدات",
-                    title = "ما المتاح لديك؟",
-                    subtitle = "اختر كل ما يمكنك استخدامه بانتظام.",
+                    title = "ما المتاح لديك بانتظام؟",
+                    subtitle = "لن نضع تمرينًا يحتاج أداة لا تملكها.",
                     options = listOf("Pull-up Bar", "Parallel Bars", "Rings", "Resistance Band", "Bench"),
                     selected = equipment,
                     onToggle = { value ->
                         equipment = if (value in equipment) equipment - value else equipment + value
-                    }
+                    },
+                    helper = "يمكنك تركها فارغة؛ سيُبنى البرنامج من تمارين وزن الجسم المتاحة في المكتبة."
                 )
+
+                5 -> MultiChoiceStep(
+                    eyebrow = "الراحة والحركة",
+                    title = "هل لديك مناطق تريد أن نتعامل معها بحذر؟",
+                    subtitle = "هذا ليس تشخيصًا طبيًا؛ نستخدمه فقط لتجنب بعض الحركات في الخطة.",
+                    options = listOf(
+                        "ألم/انزعاج في الكتف",
+                        "ألم/انزعاج في الركبة",
+                        "ألم/انزعاج في المعصم",
+                        "ألم/انزعاج أسفل الظهر"
+                    ),
+                    selected = limitations,
+                    onToggle = { value ->
+                        limitations = if (value in limitations) limitations - value else limitations + value
+                    },
+                    helper = "إذا كان الألم مستمرًا أو حادًا، يلزم تقييم مختص قبل التدريب."
+                )
+
                 else -> ReviewStep(
                     profile = draft,
                     selectedSkills = skills,
@@ -145,6 +205,41 @@ fun OnboardingScreen(onComplete: (UserProfile) -> Unit) {
                     }
                 )
             }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun BodyProfileStep(
+    age: Int,
+    height: Int,
+    weight: Int,
+    activity: String,
+    onAge: (Int) -> Unit,
+    onHeight: (Int) -> Unit,
+    onWeight: (Int) -> Unit,
+    onActivity: (String) -> Unit
+) {
+    StepHeader(
+        "الملف الرياضي",
+        "لنبدأ بطبيعة جسمك ونمط يومك",
+        "العمر وبنية الجسم والنشاط اليومي تؤثر في حجم الجلسة، فترات الراحة وسرعة التدرج."
+    )
+
+    CounterRow("العمر", "سنة", age, onAge)
+    CounterRow("الطول", "سم", height, onHeight)
+    CounterRow("الوزن", "كغ", weight, onWeight)
+
+    Text("طبيعة النشاط اليومي", fontWeight = FontWeight.Bold)
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(listOf("منخفض", "متوسط", "مرتفع")) { item ->
+            FilterChip(
+                selected = activity == item,
+                onClick = { onActivity(item) },
+                label = { Text(item) }
+            )
         }
     }
 }
@@ -175,18 +270,20 @@ private fun MultiChoiceStep(
     subtitle: String,
     options: List<String>,
     selected: Set<String>,
-    onToggle: (String) -> Unit
+    onToggle: (String) -> Unit,
+    helper: String
 ) {
     StepHeader(eyebrow, title, subtitle)
     options.forEach { option ->
         SelectCard(
             title = option,
             selected = option in selected,
-            onClick = { onToggle(option) }
+            onClick = { onToggle(option) },
+            radio = false
         )
     }
     Text(
-        "يمكنك المتابعة دون معدات؛ سيُبنى البرنامج بوزن الجسم.",
+        helper,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodyMedium
     )
@@ -206,11 +303,12 @@ private fun AssessmentStep(
     onExperience: (String) -> Unit
 ) {
     StepHeader(
-        "تقييم سريع",
-        "لنبدأ من مستواك الحقيقي",
-        "اكتب أفضل أداء نظيف يمكنك تنفيذه الآن. لا تحتاج لاختبار مرهق."
+        "المستوى الحالي",
+        "ما الذي تستطيع تنفيذه الآن؟",
+        "سنبني نقطة البداية من الأداء الفعلي، لا من وصف مبتدئ أو متقدم وحده."
     )
 
+    Text("خبرتك السابقة", fontWeight = FontWeight.Bold)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(listOf("مبتدئ", "متوسط", "متقدم")) { item ->
             FilterChip(
@@ -221,9 +319,9 @@ private fun AssessmentStep(
         }
     }
 
-    CounterRow("Push-ups", "تكرار", pushUps, onPushUps)
-    CounterRow("Pull-ups", "تكرار", pullUps, onPullUps)
-    CounterRow("Dips", "تكرار", dips, onDips)
+    CounterRow("Push-ups", "تكرار نظيف", pushUps, onPushUps)
+    CounterRow("Pull-ups", "تكرار نظيف", pullUps, onPullUps)
+    CounterRow("Dips", "تكرار نظيف", dips, onDips)
     CounterRow("Hollow hold", "ثانية", hollow, onHollow, step = 5)
 }
 
@@ -235,9 +333,9 @@ private fun ScheduleStep(
     onMinutes: (Int) -> Unit
 ) {
     StepHeader(
-        "الجدول",
-        "خطة قابلة للاستمرار",
-        "سنوزع الجهد على أيام يمكنك الالتزام بها فعلًا."
+        "الوقت المتاح",
+        "الخطة الجيدة هي التي تستطيع الاستمرار بها",
+        "سنوزع الجهد والاستشفاء على عدد الأيام والزمن الذي يمكنك الالتزام به."
     )
 
     Text("أيام التدريب أسبوعيًا", fontWeight = FontWeight.Bold)
@@ -274,9 +372,9 @@ private fun ReviewStep(
     }
 
     StepHeader(
-        "المهارات",
-        "اختر ما تريد تطويره",
-        "سنربط المهارات بالمرحلة الأساسية بدل تدريبها عشوائيًا."
+        "المهارات والخطة",
+        "اختر المهارات التي تريد تطويرها",
+        "ستبقى المهارة جزءًا من البرنامج، وليست تمرينًا منفصلًا عن قاعدة القوة."
     )
 
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -297,19 +395,29 @@ private fun ReviewStep(
             Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("معاينة خطتك", style = MaterialTheme.typography.labelLarge)
+            Text("الخطة التي بُنيت لك", style = MaterialTheme.typography.labelLarge)
             Text(
                 blueprint.title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Black
             )
-            Text("${blueprint.totalWeeks} أسابيع · ${profile.daysPerWeek} أيام أسبوعيًا · ${profile.sessionMinutes} دقيقة")
+            Text(
+                "${blueprint.totalWeeks} أسابيع · ${profile.daysPerWeek} أيام أسبوعيًا · ${profile.sessionMinutes} دقيقة"
+            )
             Text(
                 blueprint.rationale,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
+            blueprint.readinessNotes.forEach { note ->
+                Text("• $note", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
+
+    Text(
+        "يمكن تعديل الهدف والجدول لاحقًا وإعادة بناء الخطة دون فقدان سجل التدريب.",
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
@@ -332,7 +440,12 @@ private fun StepHeader(eyebrow: String, title: String, subtitle: String) {
 }
 
 @Composable
-private fun SelectCard(title: String, selected: Boolean, onClick: () -> Unit) {
+private fun SelectCard(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    radio: Boolean = true
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -352,7 +465,11 @@ private fun SelectCard(title: String, selected: Boolean, onClick: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
             )
-            RadioButton(selected = selected, onClick = onClick)
+            if (radio) {
+                RadioButton(selected = selected, onClick = onClick)
+            } else {
+                Checkbox(checked = selected, onCheckedChange = { onClick() })
+            }
         }
     }
 }
