@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
@@ -228,9 +230,9 @@ private fun BodyProfileStep(
         "العمر وبنية الجسم والنشاط اليومي تؤثر في حجم الجلسة، فترات الراحة وسرعة التدرج."
     )
 
-    CounterRow("العمر", "سنة", age, onAge)
-    CounterRow("الطول", "سم", height, onHeight)
-    CounterRow("الوزن", "كغ", weight, onWeight)
+    NumericInput("العمر", "سنة", age, onAge, 14..85)
+    NumericInput("الطول", "سم", height, onHeight, 130..220)
+    NumericInput("الوزن", "كغ", weight, onWeight, 35..200)
 
     Text("طبيعة النشاط اليومي", fontWeight = FontWeight.Bold)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -256,7 +258,7 @@ private fun ChoiceStep(
     StepHeader(eyebrow, title, subtitle)
     options.forEach { option ->
         SelectCard(
-            title = option,
+            title = displayOption(option),
             selected = option == selected,
             onClick = { onSelect(option) }
         )
@@ -276,7 +278,7 @@ private fun MultiChoiceStep(
     StepHeader(eyebrow, title, subtitle)
     options.forEach { option ->
         SelectCard(
-            title = option,
+            title = displayOption(option),
             selected = option in selected,
             onClick = { onToggle(option) },
             radio = false
@@ -319,10 +321,10 @@ private fun AssessmentStep(
         }
     }
 
-    CounterRow("Push-ups", "تكرار نظيف", pushUps, onPushUps)
-    CounterRow("Pull-ups", "تكرار نظيف", pullUps, onPullUps)
-    CounterRow("Dips", "تكرار نظيف", dips, onDips)
-    CounterRow("Hollow hold", "ثانية", hollow, onHollow, step = 5)
+    NumericInput("تمرين الضغط", "تكرار نظيف", pushUps, onPushUps, 0..100)
+    NumericInput("العقلة", "تكرار نظيف", pullUps, onPullUps, 0..50)
+    NumericInput("المتوازي", "تكرار نظيف", dips, onDips, 0..50)
+    NumericInput("الثبات المجوف", "ثانية", hollow, onHollow, 0..180)
 }
 
 @Composable
@@ -382,7 +384,7 @@ private fun ReviewStep(
             FilterChip(
                 selected = skill in selectedSkills,
                 onClick = { onToggleSkill(skill) },
-                label = { Text(skill) }
+                label = { Text(displayOption(skill)) }
             )
         }
     }
@@ -475,41 +477,49 @@ private fun SelectCard(
 }
 
 @Composable
-private fun CounterRow(
+private fun NumericInput(
     title: String,
     unit: String,
     value: Int,
     onValue: (Int) -> Unit,
-    step: Int = 1
+    range: IntRange
 ) {
-    Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold)
-                Text(unit, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            FilledTonalButton(
-                onClick = { onValue((value - step).coerceAtLeast(0)) },
-                contentPadding = PaddingValues(horizontal = 14.dp)
-            ) { Text("−") }
+    var text by remember(value) { mutableStateOf(value.toString()) }
+
+    OutlinedTextField(
+        value = text,
+        onValueChange = { raw ->
+            val filtered = raw.filter { it.isDigit() }.take(3)
+            text = filtered
+            filtered.toIntOrNull()?.let { onValue(it.coerceIn(range.first, range.last)) }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        label = { Text(title) },
+        supportingText = { Text(unit) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        trailingIcon = {
             Text(
-                "$value",
-                modifier = Modifier.padding(horizontal = 16.dp),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black
+                unit,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge
             )
-            FilledTonalButton(
-                onClick = { onValue(value + step) },
-                contentPadding = PaddingValues(horizontal = 14.dp)
-            ) { Text("+") }
-        }
-    }
+        },
+        shape = RoundedCornerShape(18.dp)
+    )
+}
+
+private fun displayOption(value: String): String = when (value) {
+    "Pull-up" -> "العقلة"
+    "Muscle-up" -> "المسل أب"
+    "Handstand" -> "الوقوف على اليدين"
+    "Front Lever" -> "الفرونت ليفر"
+    "Planche" -> "البلانش"
+    "L-sit" -> "إل-سِت"
+    "Pull-up Bar" -> "بار العقلة"
+    "Parallel Bars" -> "المتوازي"
+    "Rings" -> "الحلقات"
+    "Resistance Band" -> "حزام مقاومة"
+    "Bench" -> "مقعد"
+    else -> value
 }
