@@ -50,6 +50,7 @@ import com.rushd.calisthenicscoach.domain.SkillStateEngine
 import com.rushd.calisthenicscoach.data.CoachRepository
 import com.rushd.calisthenicscoach.data.CoachAdaptationRepository
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
+import com.rushd.calisthenicscoach.domain.ArabicTerminology
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 import com.rushd.calisthenicscoach.domain.ExerciseSubstitutionEngine
 import com.rushd.calisthenicscoach.domain.SamplePrograms
