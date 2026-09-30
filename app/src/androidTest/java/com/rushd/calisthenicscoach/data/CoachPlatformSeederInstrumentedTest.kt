@@ -40,7 +40,7 @@ class CoachPlatformSeederInstrumentedTest {
         assertEquals(814, dao.countSourceActions(HomeWorkoutSourceIndex.SOURCE))
         assertEquals(49, dao.getSourceActionsWithVideo(HomeWorkoutSourceIndex.SOURCE).size)
         assertTrue(dao.countCoreExercises() >= 54)
-        assertEquals(8, dao.countSkills())
+        assertEquals(10, dao.countSkills())
         assertTrue(dao.countProgressionNodes() >= 30)
         assertTrue(dao.countProgressionEdges() >= 20)
     }
