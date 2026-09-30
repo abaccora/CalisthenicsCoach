@@ -2315,6 +2315,13 @@ private fun AthleteProfileScreen(
     history: List<ExerciseHistoryStat>,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+    val versionName = remember(context) {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -2410,6 +2417,13 @@ private fun AthleteProfileScreen(
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
+            }
+            item {
+                Text(
+                    "الإصدار $versionName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
