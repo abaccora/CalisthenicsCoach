@@ -17,6 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SkillStateEntity::class,
         AthleteProfileEntity::class,
         AssessmentEntity::class,
+        SourceActionEntity::class,
         ExerciseEntity::class,
         ExerciseVariantEntity::class,
         SkillEntity::class,
@@ -157,6 +158,25 @@ abstract class AppDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_assessments_athleteId ON assessments(athleteId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_assessments_recordedAt ON assessments(recordedAt)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS source_actions (
+                        source TEXT NOT NULL,
+                        sourceActionId INTEGER NOT NULL,
+                        textRevision INTEGER,
+                        attrsRevision INTEGER,
+                        hasArabic INTEGER NOT NULL,
+                        hasEnglish INTEGER NOT NULL,
+                        hasEmbeddedVideo INTEGER NOT NULL,
+                        mediaKey TEXT,
+                        importState TEXT NOT NULL,
+                        importedExerciseId TEXT,
+                        PRIMARY KEY(source, sourceActionId)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_source_actions_sourceActionId ON source_actions(sourceActionId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_source_actions_hasEmbeddedVideo ON source_actions(hasEmbeddedVideo)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_source_actions_importState ON source_actions(importState)")
 
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS exercises (
