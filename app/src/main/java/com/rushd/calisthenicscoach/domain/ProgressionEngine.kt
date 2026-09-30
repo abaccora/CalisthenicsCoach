@@ -39,7 +39,7 @@ object ProgressionEngine {
         nodeId: String,
         recentSessions: List<SessionPerformance>
     ): CoachRecommendation {
-        val node = SkillProgressionGraph.node(nodeId)
+        val node = SkillGraphs.node(nodeId)
             ?: error("Unknown progression node: $nodeId")
 
         val recent = recentSessions
@@ -60,7 +60,7 @@ object ProgressionEngine {
                 decision = CoachDecision.REGRESS_VARIATION,
                 reasonAr = "تم الإبلاغ عن ألم أو انزعاج؛ الأفضل الرجوع إلى نسخة أقل تطلبًا حتى إعادة التقييم.",
                 currentNode = node,
-                targetNode = SkillProgressionGraph.previous(node.id),
+                targetNode = SkillGraphs.previous(node.id),
                 volumeMultiplier = 0.75,
                 restAdjustmentSec = 20
             )
@@ -68,7 +68,7 @@ object ProgressionEngine {
 
         val lastThree = recent.take(3)
         val completionRate = lastThree.map { session ->
-            masteryCompletion(session.samples, node.mastery)
+            masteryCompletion(session.samples, node.masteryRule)
         }.average()
 
         val avgRpe = lastThree
@@ -78,11 +78,11 @@ object ProgressionEngine {
             ?.average()
 
         val successfulSessions = recent.count { session ->
-            isMasteredSession(session.samples, node.mastery)
+            isMasteredSession(session.samples, node.masteryRule)
         }
 
-        if (successfulSessions >= node.mastery.requiredSuccessfulSessions) {
-            val next = SkillProgressionGraph.next(node.id)
+        if (successfulSessions >= node.masteryRule.requiredSuccessfulSessions) {
+            val next = SkillGraphs.next(node.id)
             if (next != null) {
                 return CoachRecommendation(
                     decision = CoachDecision.PROGRESS_VARIATION,
@@ -104,7 +104,7 @@ object ProgressionEngine {
         }
 
         if (completionRate < 0.55) {
-            val previous = SkillProgressionGraph.previous(node.id)
+            val previous = SkillGraphs.previous(node.id)
             return CoachRecommendation(
                 decision = if (previous != null) CoachDecision.REGRESS_VARIATION else CoachDecision.MAINTAIN,
                 reasonAr = if (previous != null)
@@ -147,15 +147,15 @@ object ProgressionEngine {
         rule: MasteryRule
     ): Double {
         val matching = samples
-            .filter { it.completed && compatible(it.measurement, rule.measurement) }
-            .take(rule.sets)
+            .filter { it.completed && compatible(it.measurement, nodeMeasurement(rule)) }
+            .take(rule.minSets)
 
         if (matching.isEmpty()) return 0.0
 
         val achieved = matching.sumOf { sample ->
-            minOf(sample.value.toDouble() / rule.target.toDouble(), 1.0)
+            minOf(sample.value.toDouble() / rule.targetValue.toDouble(), 1.0)
         }
-        val setCoverage = matching.size.toDouble() / rule.sets.toDouble()
+        val setCoverage = matching.size.toDouble() / rule.minSets.toDouble()
         return (achieved / matching.size.toDouble()) * setCoverage
     }
 
@@ -164,16 +164,19 @@ object ProgressionEngine {
         rule: MasteryRule
     ): Boolean {
         val matching = samples
-            .filter { it.completed && compatible(it.measurement, rule.measurement) }
-            .take(rule.sets)
+            .filter { it.completed && compatible(it.measurement, nodeMeasurement(rule)) }
+            .take(rule.minSets)
 
-        if (matching.size < rule.sets) return false
+        if (matching.size < rule.minSets) return false
 
         return matching.all { sample ->
-            sample.value >= rule.target &&
+            sample.value >= rule.targetValue &&
                 (sample.rpe == null || sample.rpe <= rule.maxRpe)
         }
     }
+
+    private fun nodeMeasurement(rule: MasteryRule): MeasurementType =
+        MeasurementType.REPS
 
     private fun compatible(actual: MeasurementType, required: MeasurementType): Boolean {
         if (actual == required) return true
