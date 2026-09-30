@@ -22,7 +22,7 @@ object AssessmentEngine {
         val base = mutableListOf(
             AssessmentMetric(
                 id = "push_reps",
-                titleAr = "أقصى عدد ضغط نظيف",
+                titleAr = "أقصى عدد من تمارين الضغط بتقنية سليمة",
                 titleEn = "Max Push-ups",
                 unit = "reps",
                 measurementType = MeasurementType.REPS,
@@ -30,7 +30,7 @@ object AssessmentEngine {
             ),
             AssessmentMetric(
                 id = "hollow_hold",
-                titleAr = "الثبات المجوف",
+                titleAr = "الثبات المجوف للجذع (Hollow Hold)",
                 titleEn = "Hollow Hold",
                 unit = "seconds",
                 measurementType = MeasurementType.HOLD_SECONDS,
@@ -38,7 +38,7 @@ object AssessmentEngine {
             ),
             AssessmentMetric(
                 id = "split_squat_reps",
-                titleAr = "قرفصاء منفصلة لكل جهة",
+                titleAr = "قرفصاء بوضعية الاندفاع الثابت لكل جهة",
                 titleEn = "Split Squat",
                 unit = "reps_per_side",
                 measurementType = MeasurementType.UNILATERAL_REPS,
@@ -49,7 +49,7 @@ object AssessmentEngine {
         if ("Pull-up Bar" in profile.equipment) {
             base += AssessmentMetric(
                 id = "hang_seconds",
-                titleAr = "مدة التعلق الحر",
+                titleAr = "مدة التعلّق بالبار",
                 titleEn = "Dead Hang",
                 unit = "seconds",
                 measurementType = MeasurementType.HOLD_SECONDS,
@@ -57,7 +57,7 @@ object AssessmentEngine {
             )
             base += AssessmentMetric(
                 id = "pull_reps",
-                titleAr = "أقصى عدد عقلة نظيفة",
+                titleAr = "أقصى عدد من السحب على البار بتقنية سليمة",
                 titleEn = "Max Pull-ups",
                 unit = "reps",
                 measurementType = MeasurementType.REPS,
@@ -69,7 +69,7 @@ object AssessmentEngine {
         if ("Parallel Bars" in profile.equipment) {
             base += AssessmentMetric(
                 id = "dip_reps",
-                titleAr = "أقصى عدد متوازي نظيف",
+                titleAr = "أقصى عدد من الضغط على المتوازي بتقنية سليمة",
                 titleEn = "Max Dips",
                 unit = "reps",
                 measurementType = MeasurementType.REPS,
@@ -82,7 +82,7 @@ object AssessmentEngine {
             "Handstand", "Planche" -> {
                 base += AssessmentMetric(
                     id = "pike_reps",
-                    titleAr = "ضغط بايك نظيف",
+                    titleAr = "ضغط الكتفين بوضعية V مقلوبة",
                     titleEn = "Pike Push-up",
                     unit = "reps",
                     measurementType = MeasurementType.REPS,
@@ -93,7 +93,7 @@ object AssessmentEngine {
                 if ("Pull-up Bar" !in profile.equipment) {
                     base += AssessmentMetric(
                         id = "back_control",
-                        titleAr = "سوبرمان متبادل لكل جهة",
+                        titleAr = "رفع الذراع والساق المتعاكسين لكل جهة",
                         titleEn = "Alternating Superman",
                         unit = "reps_per_side",
                         measurementType = MeasurementType.UNILATERAL_REPS,
