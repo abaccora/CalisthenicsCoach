@@ -1,5 +1,7 @@
 package com.rushd.calisthenicscoach.data
 
+import kotlinx.coroutines.flow.first
+
 import com.rushd.calisthenicscoach.domain.CoachDecision
 import com.rushd.calisthenicscoach.domain.MeasurementType
 import com.rushd.calisthenicscoach.domain.PerformanceSample
@@ -19,7 +21,7 @@ class CoachAdaptationRepository(private val db: AppDatabase) {
     private val dao = db.coachDao()
 
     suspend fun updateSkillStatesAfterWorkout(): List<SkillAdaptationResult> {
-        val states = dao.observeSkillStates().firstValue()
+        val states = dao.observeSkillStates().first()
         val results = mutableListOf<SkillAdaptationResult>()
 
         states.forEach { state ->
@@ -98,6 +100,3 @@ class CoachAdaptationRepository(private val db: AppDatabase) {
             .average()
     }
 }
-
-private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstValue(): T =
-    kotlinx.coroutines.flow.first(this)
