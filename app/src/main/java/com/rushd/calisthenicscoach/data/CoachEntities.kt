@@ -46,7 +46,7 @@ data class WorkoutSubstitutionEntity(
     ],
     indices = [
         Index("sessionId"),
-        Index(value = ["exerciseName"]),
+        Index("exerciseName"),
         Index(value = ["sessionId", "exerciseIndex", "setIndex"], unique = true)
     ]
 )
@@ -70,10 +70,7 @@ data class SetLogEntity(
     val loggedAt: Long = System.currentTimeMillis()
 )
 
-@Entity(
-    tableName = "assessment_results",
-    indices = [Index("metricId"), Index("recordedAt")]
-)
+@Entity(tableName = "assessment_results")
 data class AssessmentResultEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val metricId: String,
