@@ -2,8 +2,6 @@ package com.rushd.calisthenicscoach.ui
 
 import android.net.Uri
 import android.os.SystemClock
-import android.widget.MediaController
-import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -30,6 +28,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.ui.PlayerView
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
+import androidx.media3.common.MediaItem
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -905,46 +907,41 @@ private fun ExerciseVideoPlayer(
     autoPlay: Boolean = true
 ) {
     val context = LocalContext.current
-    val uri = remember(video.resId) {
+    val uri = remember(video.resId, context.packageName) {
         Uri.parse("android.resource://${context.packageName}/${video.resId}")
+    }
+
+    val player = remember(video.resId) {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            volume = 0f
+            playWhenReady = autoPlay
+            setMediaItem(MediaItem.fromUri(uri))
+            prepare()
+        }
+    }
+
+    LaunchedEffect(autoPlay) {
+        player.playWhenReady = autoPlay
+        if (autoPlay) player.play() else player.pause()
+    }
+
+    DisposableEffect(player) {
+        onDispose { player.release() }
     }
 
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            VideoView(ctx).apply {
-                if (showControls) {
-                    val controller = MediaController(ctx)
-                    controller.setAnchorView(this)
-                    setMediaController(controller)
-                } else {
-                    setMediaController(null)
-                }
-
-                val playerView = this
-                setVideoURI(uri)
-                tag = uri.toString()
-                setOnPreparedListener { mediaPlayer ->
-                    mediaPlayer.isLooping = true
-                    seekTo(1)
-                    if (autoPlay) playerView.start()
-                }
-                setOnCompletionListener {
-                    if (autoPlay) {
-                        seekTo(1)
-                        start()
-                    }
-                }
+            PlayerView(ctx).apply {
+                useController = showControls
+                this.player = player
+                keepScreenOn = true
             }
         },
         update = { view ->
-            if (view.tag != uri.toString()) {
-                view.tag = uri.toString()
-                view.setVideoURI(uri)
-            }
-            if (autoPlay && !view.isPlaying) {
-                view.start()
-            }
+            view.useController = showControls
+            view.player = player
         }
     )
 }
