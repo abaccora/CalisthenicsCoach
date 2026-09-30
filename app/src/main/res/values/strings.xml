@@ -41,6 +41,9 @@
     <string name="workout_side_value">%1$d / side</string>
     <string name="workout_reps_value">%1$d reps</string>
     <string name="workout_sets_count">%1$d sets</string>
+    <string name="workout_sets_progress_total">%1$d of %2$d sets</string>
+    <string name="workout_sets_label">Sets</string>
+    <string name="workout_rest_short">sec</string>
     <string name="workout_target_label">Target</string>
     <string name="workout_rest_label">Rest</string>
     <string name="workout_performance_note">Performance note</string>
