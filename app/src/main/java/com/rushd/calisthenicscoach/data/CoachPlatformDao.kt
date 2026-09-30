@@ -21,6 +21,26 @@ interface CoachPlatformDao {
     fun observeAssessments(athleteId: String = "local"): Flow<List<AssessmentEntity>>
 
     @Upsert
+    suspend fun upsertSourceActions(items: List<SourceActionEntity>)
+
+    @Query("SELECT COUNT(*) FROM source_actions WHERE source = :source")
+    suspend fun countSourceActions(source: String): Int
+
+    @Query("""
+        SELECT * FROM source_actions
+        WHERE source = :source
+        ORDER BY sourceActionId
+    """)
+    suspend fun getSourceActions(source: String): List<SourceActionEntity>
+
+    @Query("""
+        SELECT * FROM source_actions
+        WHERE source = :source AND hasEmbeddedVideo = 1
+        ORDER BY sourceActionId
+    """)
+    suspend fun getSourceActionsWithVideo(source: String): List<SourceActionEntity>
+
+    @Upsert
     suspend fun upsertExercises(items: List<ExerciseEntity>)
 
     @Query("SELECT * FROM exercises WHERE isCoreCatalog = 1 ORDER BY movementPattern, difficulty, nameEn")
