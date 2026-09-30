@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import com.rushd.calisthenicscoach.R
 import androidx.compose.ui.unit.dp
 import com.rushd.calisthenicscoach.domain.DailyReadiness
 import com.rushd.calisthenicscoach.domain.EnergyLevel
@@ -35,13 +37,13 @@ fun ReadinessScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("جهوزية اليوم", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.readiness_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
                         "سنعدل جلسة اليوم فقط، ولن نغير برنامجك الأساسي.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                TextButton(onClick = onCancel) { Text("إلغاء") }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.readiness_cancel)) }
             }
         },
         bottomBar = {
@@ -57,7 +59,7 @@ fun ReadinessScreen(
                 },
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp)
             ) {
-                Text("جهّز جلسة اليوم", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.readiness_prepare), fontWeight = FontWeight.Bold)
             }
         }
     ) { padding ->
