@@ -1669,54 +1669,69 @@ private fun WorkoutScreen(
                 ) {
                     when {
                         rest > 0 -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        "وقت الراحة",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "%02d:%02d".format(rest / 60, rest % 60),
-                                        style = MaterialTheme.typography.headlineLarge,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-                                Spacer(Modifier.weight(1f))
-                                FilledTonalButton(
-                                    onClick = { rest = (rest + 15).coerceAtMost(300) }
-                                ) { Text("+15") }
-                                Spacer(Modifier.width(6.dp))
-                                FilledTonalButton(
-                                    onClick = { rest = (rest + 30).coerceAtMost(300) }
-                                ) { Text("+30") }
-                            }
-
                             val nextDuringRest = if ((completedSets[index] ?: 0) >= exercise.sets) {
                                 nextIncomplete(index)
                             } else {
                                 index
                             }
-                            if (nextDuringRest != null) {
-                                Text(
-                                    if (nextDuringRest == index)
-                                        "بعد الراحة · المجموعة ${(completedSets[index] ?: 0) + 1} من ${exercise.sets}"
-                                    else
-                                        "التالي · ${currentExerciseAt(nextDuringRest).ArabicName}",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                                ) {
+                                    Text(
+                                        "الراحة",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "%02d:%02d".format(rest / 60, rest % 60),
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+
+                                TextButton(
+                                    onClick = { rest = (rest + 15).coerceAtMost(300) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) { Text("+15") }
+
+                                TextButton(
+                                    onClick = { rest = (rest + 30).coerceAtMost(300) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) { Text("+30") }
+
+                                FilledTonalButton(
+                                    onClick = { rest = 0 },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.SkipNext,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("تجاوز")
+                                }
                             }
 
-                            OutlinedButton(
-                                onClick = { rest = 0 },
-                                modifier = Modifier.fillMaxWidth().height(50.dp)
-                            ) {
-                                Icon(Icons.Default.SkipNext, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("تجاوز الراحة")
+                            if (nextDuringRest != null) {
+                                Text(
+                                    if (nextDuringRest == index) {
+                                        "بعد الراحة · المجموعة ${(completedSets[index] ?: 0) + 1} من ${exercise.sets}"
+                                    } else {
+                                        "التالي · ${currentExerciseAt(nextDuringRest).ArabicName}"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
 
