@@ -134,6 +134,18 @@ class WorkoutSessionRepository(context: Context) {
         dao.replaceSessionDetails(id, logs, replacements)
     }
 
+    suspend fun saveFeedback(
+        perceivedDifficulty: String?,
+        painReported: Boolean
+    ) {
+        val active = dao.getActiveSession() ?: return
+        dao.updateSessionFeedback(
+            sessionId = active.id,
+            difficulty = perceivedDifficulty,
+            painReported = painReported
+        )
+    }
+
     suspend fun clearSession() {
         val active = dao.getActiveSession() ?: return
         dao.completeSession(active.id, System.currentTimeMillis())
