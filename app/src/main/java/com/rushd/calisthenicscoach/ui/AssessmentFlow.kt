@@ -114,7 +114,7 @@ fun GuidedAssessmentScreen(
                 item {
                     ExerciseVideoPlayer(
                         video = video,
-                        modifier = Modifier.fillMaxWidth().height(230.dp),
+                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                         showControls = false,
                         autoPlay = true
                     )
