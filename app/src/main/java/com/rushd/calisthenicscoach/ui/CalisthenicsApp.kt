@@ -45,6 +45,7 @@ import com.rushd.calisthenicscoach.data.UserPreferencesRepository
 import com.rushd.calisthenicscoach.data.OnboardingDraft
 import com.rushd.calisthenicscoach.domain.SkillStateEngine
 import com.rushd.calisthenicscoach.data.CoachRepository
+import com.rushd.calisthenicscoach.data.CoachAdaptationRepository
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 import com.rushd.calisthenicscoach.domain.SamplePrograms
@@ -1145,6 +1146,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).workoutDao() }
     val sessionRepo = remember { WorkoutSessionRepository(context) }
+    val adaptationRepo = remember { CoachAdaptationRepository(AppDatabase.get(context)) }
     val scope = rememberCoroutineScope()
 
     var loadedSession by remember { mutableStateOf(false) }
@@ -1290,6 +1292,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
             )
             sessionRepo.mergeHistory(performances.toList())
             sessionRepo.clearSession()
+            adaptationRepo.updateSkillStatesAfterWorkout()
             showSummary = true
         }
     }
