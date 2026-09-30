@@ -41,6 +41,9 @@
     <string name="workout_side_value">%1$d / جهة</string>
     <string name="workout_reps_value">%1$d تكرار</string>
     <string name="workout_sets_count">%1$d مجموعات</string>
+    <string name="workout_sets_progress_total">%1$d من %2$d مجموعة</string>
+    <string name="workout_sets_label">مجموعات</string>
+    <string name="workout_rest_short">ث</string>
     <string name="workout_target_label">الهدف</string>
     <string name="workout_rest_label">الراحة</string>
     <string name="workout_performance_note">ملاحظة الأداء</string>
