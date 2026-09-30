@@ -143,8 +143,9 @@ class CoachPlatformSeeder(
 
     private fun skillPattern(skillId: String): String = when (skillId) {
         "pull_up", "muscle_up", "front_lever" -> "VERTICAL_PULL"
-        "dip", "planche", "handstand" -> "PUSH"
+        "dip", "planche", "handstand", "push_up" -> "PUSH"
         "l_sit" -> "CORE_COMPRESSION"
+        "core_hollow" -> "CORE"
         "pistol_squat" -> "UNILATERAL_SQUAT"
         else -> "GENERAL"
     }
@@ -181,7 +182,11 @@ class CoachPlatformSeeder(
         """{"sets":$sets,"target":$target,"maxRpe":$maxRpe,"sessions":$sessions,"measurement":"$measurement"}"""
 
     private fun prerequisitesJson(ids: Set<String>): String =
-        ids.joinToString(prefix = """{"nodes":[""", postfix = """]}""", separator = """,""") { it }
+        if (ids.isEmpty()) {
+            """{"nodes":[]}"""
+        } else {
+            ids.joinToString(prefix = """{"nodes":[""", postfix = """]}""", separator = """,""") { it }
+        }
 
     private fun slug(value: String): String =
         value.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
