@@ -54,12 +54,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: calisthenics-videos-v1
+          key: calisthenics-videos-mobile-v3
           save-always: true
 
-      - name: Download exercise video library
+      - name: Prepare exercise video library
         if: steps.video-cache.outputs.cache-hit != 'true'
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install --disable-pip-version-check gdown==5.2.0
           python scripts/download_videos.py
 
@@ -88,14 +90,27 @@ jobs:
       - name: Prepare test APK
         if: github.event_name != 'pull_request'
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk CalisthenicsCoach-2.1.0-alpha01.apk
+          cp app/build/outputs/apk/debug/app-debug.apk CalisthenicsCoach-2.1.0-alpha02.apk
 
       - name: Upload test APK
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: CalisthenicsCoach-2.1.0-alpha01
-          path: CalisthenicsCoach-2.1.0-alpha01.apk
+          name: CalisthenicsCoach-2.1.0-alpha02
+          path: CalisthenicsCoach-2.1.0-alpha02.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Prepare APK signer tool
+        if: github.event_name != 'pull_request'
+        run: cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" apksigner.jar
+
+      - name: Upload APK signer tool
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apksigner
+          path: apksigner.jar
           if-no-files-found: error
           retention-days: 14
 
@@ -120,11 +135,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: calisthenics-videos-v1
+          key: calisthenics-videos-mobile-v3
 
-      - name: Download exercise video library
+      - name: Prepare exercise video library
         if: steps.integration-video-cache.outputs.cache-hit != 'true'
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install --disable-pip-version-check gdown==5.2.0
           python scripts/download_videos.py
 

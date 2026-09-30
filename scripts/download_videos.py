@@ -1,4 +1,6 @@
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import gdown
 
@@ -61,6 +63,36 @@ VIDEOS = {
 
 target = Path("app/src/main/res/raw")
 target.mkdir(parents=True, exist_ok=True)
+ffmpeg = shutil.which("ffmpeg")
+if not ffmpeg:
+    raise SystemExit("ffmpeg is required to normalize exercise videos")
+
+def normalize_video(path: Path) -> None:
+    """Produce a mobile-safe H.264/yuv420p MP4 with exactly one video stream."""
+    temp = path.with_suffix(".normalized.mp4")
+    command = [
+        ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(path),
+        "-map", "0:v:0",
+        "-vf", "scale=720:-2",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-profile:v", "main",
+        "-level", "3.1",
+        "-movflags", "+faststart",
+        "-an",
+        "-dn",
+        "-map_metadata", "-1",
+        "-write_tmcd", "0",
+        str(temp),
+    ]
+    subprocess.run(command, check=True)
+    if not temp.exists() or temp.stat().st_size < 1024:
+        raise RuntimeError(f"Normalized output is invalid: {path.name}")
+    temp.replace(path)
+
 failed = []
 for i, (name, file_id) in enumerate(VIDEOS.items(), 1):
     out = target / name
@@ -69,10 +101,12 @@ for i, (name, file_id) in enumerate(VIDEOS.items(), 1):
         result = gdown.download(id=file_id, output=str(out), quiet=False, fuzzy=True)
         if not result or not out.exists() or out.stat().st_size < 1024:
             failed.append(name)
+        else:
+            normalize_video(out)
     except Exception as exc:
         print(f"ERROR {name}: {exc}", file=sys.stderr)
         failed.append(name)
 
 if failed:
     raise SystemExit("Failed to download: " + ", ".join(failed))
-print(f"Downloaded {len(VIDEOS)} videos")
+print(f"Downloaded and normalized {len(VIDEOS)} videos")
