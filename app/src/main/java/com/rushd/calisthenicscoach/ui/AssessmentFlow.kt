@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.stringResource
+import com.rushd.calisthenicscoach.R
 import androidx.compose.ui.unit.dp
 import com.rushd.calisthenicscoach.data.AssessmentResultEntity
 import com.rushd.calisthenicscoach.domain.AssessmentEngine
@@ -40,7 +42,7 @@ fun GuidedAssessmentScreen(
                 Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("تقييم البداية", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.assessment_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
                     "الاختبار ${index + 1} من ${plan.metrics.size}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -62,7 +64,7 @@ fun GuidedAssessmentScreen(
                             onClick = { index-- },
                             modifier = Modifier.weight(1f).height(54.dp)
                         ) {
-                            Text("السابق")
+                            Text(stringResource(R.string.assessment_previous))
                         }
                     }
                     Button(
@@ -86,7 +88,7 @@ fun GuidedAssessmentScreen(
                         enabled = metric.optional || value.toDoubleOrNull() != null,
                         modifier = Modifier.weight(1f).height(54.dp)
                     ) {
-                        Text(if (index == plan.metrics.lastIndex) "إنهاء التقييم" else "التالي")
+                        Text(if (index == plan.metrics.lastIndex) stringResource(R.string.assessment_finish) else stringResource(R.string.assessment_next))
                     }
                 }
             }
@@ -203,7 +205,7 @@ fun GeneratedPlanScreen(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("ابدأ خطتي", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.plan_start), fontWeight = FontWeight.Bold)
             }
         }
     ) { padding ->
@@ -221,7 +223,7 @@ fun GeneratedPlanScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "تم إعداد برنامجك",
+                    stringResource(R.string.plan_ready_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Black
                 )
