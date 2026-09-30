@@ -76,7 +76,7 @@ object ProgramEngine {
                     ex("Incline Push Up", "ضغط مائل", 3, "8–12", 60, "جسم مستقيم ونزول متحكم"),
                     ex(backChoice(profile), backArabic(backChoice(profile)), 3, "6–10", 75, "اسحب من لوح الكتف وحافظ على الجذع ثابتًا"),
                     ex(legChoice(profile), legArabic(legChoice(profile)), 3, "8/جهة", 60, "تحكم في النزول وحافظ على الركبة مستقرة"),
-                    ex("Dead Bug", "ديد باغ", 3, "8/جهة", 45, "ثبت أسفل الظهر وحرّك الأطراف ببطء"),
+                    ex("Dead Bug", "تمرين الجذع المتعاكس", 3, "8/جهة", 45, "ثبت أسفل الظهر وحرّك الأطراف ببطء"),
                     ex("Hip Flexor Stretch", "إطالة مثنيات الورك", 2, "30 ث/جهة", 30, "تنفس بهدوء وتجنب الدفع المؤلم")
                 ),
                 recovery
@@ -157,21 +157,21 @@ object ProgramEngine {
 
         val accessories = when (goal) {
             "Handstand", "Planche" -> listOf(
-                ex("Pike Push Up", "ضغط بايك", 3, "6–10", 75, "ادفع الأرض وحافظ على الكتفين نشطين"),
-                ex("Plank Shoulder Tap", "لمس الكتف من البلانك", 3, "8/جهة", 45, "قلل دوران الحوض"),
-                ex("Body Saw", "بودي سو", 3, "8–12", 45, "حافظ على الجذع مشدودًا"),
+                ex("Pike Push Up", "ضغط الكتفين بوضعية V مقلوبة", 3, "6–10", 75, "ادفع الأرض وحافظ على الكتفين نشطين"),
+                ex("Plank Shoulder Tap", "لمس الكتفين من وضعية البلانك", 3, "8/جهة", 45, "قلل دوران الحوض"),
+                ex("Body Saw", "بلانك متحرك أمامًا وخلفًا", 3, "8–12", 45, "حافظ على الجذع مشدودًا"),
                 ex("Downward Facing Dog", "وضعية الكلب لأسفل", 2, "30–40 ث", 30, "تنفس ببطء وأطل الكتفين")
             )
             "Pull-up", "Muscle-up", "Front Lever" -> listOf(
                 ex(backChoice(profile), backArabic(backChoice(profile)), 4, "4–8", 90, "ركز على سحب لوحي الكتف أولًا"),
                 ex(backAccessory(profile), backArabic(backAccessory(profile)), 3, if (backAccessory(profile) == "Alternating Superman") "8/جهة" else "8–12", 60, "حافظ على الجذع ثابتًا والحركة متحكمًا بها"),
-                ex("Alternating Superman", "سوبرمان متبادل", 3, "8/جهة", 45, "ارفع بمدى صغير ومتحكم"),
-                ex("Body Saw", "بودي سو", 3, "8–12", 45, "ثبّت الجذع طوال الحركة")
+                ex("Alternating Superman", "رفع الذراع والساق المتعاكسين", 3, "8/جهة", 45, "ارفع بمدى صغير ومتحكم"),
+                ex("Body Saw", "بلانك متحرك أمامًا وخلفًا", 3, "8–12", 45, "ثبّت الجذع طوال الحركة")
             )
             else -> listOf(
-                ex("Pike Push Up", "ضغط بايك", 3, "6–10", 60, "حافظ على تحكم كامل"),
+                ex("Pike Push Up", "ضغط الكتفين بوضعية V مقلوبة", 3, "6–10", 60, "حافظ على تحكم كامل"),
                 ex(backAccessory(profile), backArabic(backAccessory(profile)), 3, if (backAccessory(profile) == "Alternating Superman") "8/جهة" else "8–12", 60, "نفذ الحركة ببطء ومن دون اندفاع"),
-                ex("Bicycle Crunch", "كرنش الدراجة", 3, "10/جهة", 45, "تحرك ببطء دون شد الرقبة"),
+                ex("Bicycle Crunch", "تمرين الدراجة للبطن", 3, "10/جهة", 45, "تحرك ببطء دون شد الرقبة"),
                 ex("Cat Cow Stretch", "إطالة القطة والبقرة", 2, "8–10", 30, "نسق الحركة مع التنفس")
             )
         }
@@ -328,24 +328,9 @@ object ProgramEngine {
         if (profile.targetSkills.isEmpty()) "قوة نوعية · تحكم · مرونة"
         else profile.targetSkills.take(2).joinToString(" + ") { goalArabic(it) }
 
-    private fun goalArabic(value: String): String = when (value) {
-        "Pull-up" -> "العقلة"
-        "Muscle-up" -> "المسل أب"
-        "Handstand" -> "الوقوف على اليدين"
-        "Front Lever" -> "الفرونت ليفر"
-        "Planche" -> "البلانش"
-        "L-sit" -> "إل-سِت"
-        else -> value
-    }
+    private fun goalArabic(value: String): String = ArabicTerminology.goal(value)
 
-    private fun equipmentArabic(value: String): String = when (value) {
-        "Pull-up Bar" -> "بار العقلة"
-        "Parallel Bars" -> "المتوازي"
-        "Rings" -> "الحلقات"
-        "Resistance Band" -> "حزام مقاومة"
-        "Bench" -> "مقعد"
-        else -> value
-    }
+    private fun equipmentArabic(value: String): String = ArabicTerminology.equipment(value)
 
     private fun ex(
         name: String,
@@ -355,36 +340,23 @@ object ProgramEngine {
         rest: Int,
         cue: String,
         measurementType: MeasurementType = MeasurementType.REPS
-    ) = Exercise(name, ar, sets, reps, rest, cue, measurementType)
+    ) = Exercise(
+        name,
+        ArabicTerminology.exercise(name).takeUnless { it == name } ?: ar,
+        sets,
+        reps,
+        rest,
+        cue,
+        measurementType
+    )
 
-    private fun backArabic(name: String) = when (name) {
-        "Regular Pull Up" -> "عقلة"
-        "Parallel Grip Pull Up" -> "عقلة بقبضة متوازية"
-        "Inverted Row" -> "سحب أفقي"
-        "Alternating Superman" -> "سوبرمان متبادل"
-        "Cat Cow Stretch" -> "إطالة القطة والبقرة"
-        else -> "تمرين ظهر"
-    }
+    private fun backArabic(name: String) = ArabicTerminology.exercise(name)
 
-    private fun pushArabic(name: String) = when (name) {
-        "Chest Dip" -> "ديبس للصدر"
-        "Pseudo Push Up" -> "ضغط سودو"
-        "Regular Push Up" -> "ضغط"
-        else -> "تمرين دفع"
-    }
+    private fun pushArabic(name: String) = ArabicTerminology.exercise(name)
 
-    private fun legArabic(name: String) = when (name) {
-        "Bulgarian Split Squat" -> "قرفصاء بلغارية"
-        "Split Squat" -> "قرفصاء منفصلة"
-        "Hip Thrust" -> "دفع الورك"
-        else -> "تمرين أرجل"
-    }
+    private fun legArabic(name: String) = ArabicTerminology.exercise(name)
 
-    private fun shoulderArabic(name: String) = when (name) {
-        "Pike Push Up" -> "ضغط بايك"
-        "Plank Shoulder Tap" -> "لمس الكتف من البلانك"
-        else -> "تمرين كتف"
-    }
+    private fun shoulderArabic(name: String) = ArabicTerminology.exercise(name)
 
     private data class RecoveryProfile(val setReduction: Int, val extraRestSec: Int)
 }
