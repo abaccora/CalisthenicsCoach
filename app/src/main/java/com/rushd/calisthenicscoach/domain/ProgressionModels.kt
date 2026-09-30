@@ -40,6 +40,8 @@ object SkillGraphs {
     val all: List<SkillGraph> = listOf(
         pullUp(),
         dip(),
+        pushUp(),
+        coreHollow(),
         handstand(),
         lSit(),
         muscleUp(),
@@ -86,6 +88,26 @@ object SkillGraphs {
             n("dip_bench","dip","Bench Dip","ضغط خلفي على المقعد","Bench Dip",1,MeasurementType.REPS,3,12,setOf("Bench")),
             n("dip_support","dip","Chest Dip","الثبات والتحكم على الضغط على المتوازي","Dip Support",2,MeasurementType.REPS,3,5,setOf("Parallel Bars")),
             n("dip_regular","dip","Chest Dip","الضغط على المتوازي","Dip",3,MeasurementType.REPS,3,10,setOf("Parallel Bars"))
+        )
+    )
+
+    private fun pushUp() = SkillGraph(
+        "push_up", "تمرين الضغط", "Push-up",
+        listOf(
+            n("push_incline","push_up","Incline Push Up","ضغط مائل مع رفع الجذع","Incline Push-up",1,MeasurementType.REPS,3,12),
+            n("push_regular","push_up","Regular Push Up","تمرين الضغط","Push-up",2,MeasurementType.REPS,3,12),
+            n("push_decline","push_up","Decline Push Up","ضغط مع رفع القدمين","Decline Push-up",3,MeasurementType.REPS,3,10),
+            n("push_deficit","push_up","Deficit Push Up","ضغط بمدى حركي عميق","Deficit Push-up",4,MeasurementType.REPS,3,8)
+        )
+    )
+
+    private fun coreHollow() = SkillGraph(
+        "core_hollow", "الجذع والثبات المجوف", "Core / Hollow Body",
+        listOf(
+            n("core_dead_bug","core_hollow","Dead Bug","تمرين الجذع المتعاكس","Dead Bug",1,MeasurementType.LEFT_RIGHT_REPS,3,10),
+            n("core_hollow_hold","core_hollow","Hollow Body Hold","الثبات المجوف للجذع","Hollow Body Hold",2,MeasurementType.HOLD_SECONDS,3,30),
+            n("core_body_saw","core_hollow","Body Saw","بلانك متحرك أمامًا وخلفًا","Body Saw",3,MeasurementType.REPS,3,12),
+            n("core_lsit_tuck","core_hollow","Reverse Crunch","الثبات المطوي في وضعية L","Tuck L-sit",4,MeasurementType.HOLD_SECONDS,3,20)
         )
     )
 
