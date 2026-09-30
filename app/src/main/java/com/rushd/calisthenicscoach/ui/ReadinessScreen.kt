@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.rushd.calisthenicscoach.domain.DailyReadiness
 import com.rushd.calisthenicscoach.domain.EnergyLevel
 import com.rushd.calisthenicscoach.domain.UserProfile
+import com.rushd.calisthenicscoach.domain.ArabicTerminology
 
 @Composable
 fun ReadinessScreen(
@@ -39,7 +40,7 @@ fun ReadinessScreen(
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.readiness_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        "سنعدل جلسة اليوم فقط، ولن نغير برنامجك الأساسي.",
+                        "سيضبط التطبيق جلسة اليوم فقط مع بقاء البرنامج الأساسي كما هو.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -67,7 +68,7 @@ fun ReadinessScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Text("كيف تشعر اليوم؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("كيف هي جاهزيتك اليوم؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     EnergyLevel.HIGH to "ممتاز",
@@ -100,7 +101,7 @@ fun ReadinessScreen(
             }
 
             if (profile.equipment.isNotEmpty()) {
-                Text("ما المعدات المتاحة الآن؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("ما الأدوات المتاحة لك الآن؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 profile.equipment.forEach { item ->
                     Surface(
                         modifier = Modifier.fillMaxWidth().clickable {
@@ -133,13 +134,13 @@ fun ReadinessScreen(
                 Text(
                     when {
                         energy == EnergyLevel.LOW ->
-                            "سنخفف عدد المجموعات قليلًا ونزيد الراحة اليوم."
+                            "سيخفّض التطبيق عدد المجموعات قليلًا ويزيد فترات الراحة اليوم."
                         minutes < profile.sessionMinutes ->
-                            "سنختصر الجلسة مع الحفاظ على التمارين الأعلى أولوية."
+                            "سيختصر التطبيق الجلسة مع الحفاظ على التمارين الأعلى أولوية."
                         equipment != profile.equipment ->
-                            "سنستبدل الحركات التي تحتاج معدات غير متاحة اليوم."
+                            "سيستبدل التطبيق الحركات التي تتطلب أدوات غير متاحة اليوم."
                         else ->
-                            "جلسة اليوم ستبقى قريبة من البرنامج الأصلي."
+                            "جلسة اليوم مطابقة تقريبًا للبرنامج الأساسي."
                     },
                     modifier = Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -149,11 +150,4 @@ fun ReadinessScreen(
     }
 }
 
-private fun readinessEquipmentAr(value: String): String = when (value) {
-    "Pull-up Bar" -> "بار العقلة"
-    "Parallel Bars" -> "المتوازي"
-    "Rings" -> "الحلقات"
-    "Resistance Band" -> "حزام مقاومة"
-    "Bench" -> "مقعد"
-    else -> value
-}
+private fun readinessEquipmentAr(value: String): String = ArabicTerminology.equipment(value)
