@@ -48,6 +48,7 @@ import com.rushd.calisthenicscoach.data.CoachRepository
 import com.rushd.calisthenicscoach.data.CoachAdaptationRepository
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
+import com.rushd.calisthenicscoach.domain.ExerciseSubstitutionEngine
 import com.rushd.calisthenicscoach.domain.SamplePrograms
 import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
@@ -269,7 +270,11 @@ private fun MainExperience(profile: UserProfile) {
             ) { backStack ->
                 val id = backStack.arguments?.getString("id")
                 val plan = blueprint.plans.firstOrNull { it.id == id } ?: blueprint.plans.first()
-                WorkoutScreen(plan = plan, onDone = { nav.popBackStack() })
+                WorkoutScreen(
+                    plan = plan,
+                    availableEquipment = profile.equipment,
+                    onDone = { nav.popBackStack() }
+                )
             }
         }
     }
@@ -1143,7 +1148,11 @@ private fun ProgressScreen() {
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
+private fun WorkoutScreen(
+    plan: WorkoutPlan,
+    availableEquipment: Set<String>,
+    onDone: () -> Unit
+) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).workoutDao() }
     val sessionRepo = remember { WorkoutSessionRepository(context) }
@@ -1570,10 +1579,11 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
     }
 
     if (showSubstitute) {
-        val baseVideo = ExerciseVideoCatalog.forExercise(plan.exercises[index].name)
-        val alternatives = ExerciseVideoCatalog.all.filter { alt ->
-            alt.key != baseVideo?.key && (baseVideo == null || alt.category == baseVideo.category)
-        }.take(12)
+        val alternatives = ExerciseSubstitutionEngine.alternatives(
+            currentExerciseName = exercise.name,
+            availableEquipment = availableEquipment,
+            limit = 8
+        )
 
         ModalBottomSheet(onDismissRequest = { showSubstitute = false }) {
             Column(
@@ -1585,18 +1595,21 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                     "اختر حركة من الفئة نفسها. ستبقى المجموعات والراحة كما هي.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                alternatives.forEach { alt ->
+                alternatives.forEach { option ->
+                    val alt = option.video
                     ListItem(
                         modifier = Modifier.clickable {
                             substitutions[index] = alt.nameEn
                             completedSets[index] = 0
-                            performances.removeAll { it.exerciseName == exercise.name }
+                            performances.removeAll {
+                                it.exerciseIndex == index
+                            }
                             repsInput = suggestedReps(plan.exercises[index].reps).toString()
                             persist(index)
                             showSubstitute = false
                         },
                         headlineContent = { Text(alt.nameAr, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text(alt.nameEn) },
+                        supportingContent = { Text(option.reasonAr) },
                         leadingContent = { Icon(Icons.Default.SwapHoriz, contentDescription = null) }
                     )
                 }
