@@ -6,7 +6,8 @@ data class Exercise(
     val sets: Int,
     val reps: String,
     val restSec: Int,
-    val cue: String
+    val cue: String,
+    val measurementType: MeasurementType = MeasurementType.REPS
 )
 
 data class WorkoutPlan(
