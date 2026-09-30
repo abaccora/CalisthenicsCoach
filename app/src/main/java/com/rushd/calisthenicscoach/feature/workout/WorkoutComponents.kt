@@ -69,10 +69,7 @@ fun WorkoutActionPanel(
                     onSkip = onSkipRest,
                     onAdd = onAddRest
                 )
-                return@Column
-            }
-
-            when {
+            } else when {
                 allCompleted -> {
                     Button(
                         onClick = onFinish,
