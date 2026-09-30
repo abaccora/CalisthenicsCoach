@@ -9,6 +9,7 @@ data class ExerciseVideo(
     val category: String,
     val resId: Int? = null,
     val assetPath: String? = null,
+    val fallbackResId: Int? = null,
     val source: String = "LEGACY"
 )
 
@@ -84,13 +85,32 @@ object ExerciseVideoCatalog {
     )
 
     fun forExercise(name: String): ExerciseVideo? {
-        HomeWorkoutMediaCatalog.forExercise(name)?.let { return it }
-
-        val normalized = name.lowercase().replace("–", "-").trim()
-        aliases[normalized]?.let { key -> return legacy.firstOrNull { it.key == key } }
-        val loose = normalized.replace("-", " ").replace(Regex("\\s+"), " ")
-        return legacy.firstOrNull { it.nameEn.lowercase().replace("-", " ") == loose }
+        val modern = HomeWorkoutMediaCatalog.forExercise(name)
+        if (modern != null) {
+            val fallback = legacyForExercise(name)
+            return if (fallback?.resId != null) {
+                modern.copy(fallbackResId = fallback.resId)
+            } else {
+                modern
+            }
+        }
+        return legacyForExercise(name)
     }
+
+    fun legacyForExercise(name: String): ExerciseVideo? {
+        val normalized = normalize(name)
+        aliases[normalized]?.let { key ->
+            return legacy.firstOrNull { it.key == key }
+        }
+        return legacy.firstOrNull { normalize(it.nameEn) == normalized }
+    }
+
+    private fun normalize(value: String): String =
+        value.lowercase()
+            .replace("–", "-")
+            .replace("-", " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
 
     fun allWithFallback(): List<ExerciseVideo> = all + legacy
 }
