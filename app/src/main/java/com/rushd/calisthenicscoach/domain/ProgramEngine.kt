@@ -211,8 +211,8 @@ object ProgramEngine {
                 ExerciseVideoCatalog.forExercise(node.exerciseName) != null
         } ?: return null
 
-        val target = playable.mastery.target
-        val reps = when (playable.mastery.measurement) {
+        val target = playable.masteryRule.targetValue
+        val reps = when (playable.measurementType) {
             MeasurementType.HOLD_SECONDS -> "$target ثانية"
             MeasurementType.LEFT_RIGHT_REPS,
             MeasurementType.UNILATERAL_REPS -> "$target/جهة"
@@ -222,11 +222,11 @@ object ProgramEngine {
         return ex(
             name = playable.exerciseName!!,
             ar = playable.titleAr,
-            sets = playable.mastery.sets,
+            sets = playable.masteryRule.minSets,
             reps = reps,
             rest = 90,
             cue = "نفّذ الحركة بجودة كاملة. الانتقال للمستوى التالي يعتمد على تحقيق معيار الإتقان في أكثر من جلسة.",
-            measurementType = playable.mastery.measurement
+            measurementType = playable.measurementType
         )
     }
 
