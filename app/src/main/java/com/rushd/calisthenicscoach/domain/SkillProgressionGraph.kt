@@ -4,6 +4,7 @@ enum class MeasurementType {
     REPS,
     HOLD_SECONDS,
     LEFT_RIGHT_REPS,
+    UNILATERAL_REPS,
     QUALITY_REPS
 }
 
