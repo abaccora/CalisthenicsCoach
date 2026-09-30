@@ -32,10 +32,10 @@ object SkillStateEngine {
             else -> "push_incline"
         }
 
+        val coreReps = values["core_reps"] ?: 0.0
         val coreNode = when {
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 40.0 -> "core_lsit_tuck"
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 30.0 -> "core_body_saw"
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 15.0 -> "core_hollow_hold"
+            coreReps >= 15.0 -> "core_body_saw"
+            coreReps >= 10.0 -> "core_hollow_hold"
             else -> "core_dead_bug"
         }
 
@@ -46,7 +46,7 @@ object SkillStateEngine {
         }
 
         val lSitNode = when {
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 30.0 -> "lsit_compression"
+            coreReps >= 12.0 -> "lsit_compression"
             else -> "lsit_hollow"
         }
 
