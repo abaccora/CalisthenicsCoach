@@ -8,6 +8,7 @@ import com.rushd.calisthenicscoach.domain.PerformanceSample
 import com.rushd.calisthenicscoach.domain.ProgressionEngine
 import com.rushd.calisthenicscoach.domain.SessionPerformance
 import com.rushd.calisthenicscoach.domain.SkillProgressionGraph
+import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 
 data class SkillAdaptationResult(
     val skillId: String,
@@ -27,7 +28,8 @@ class CoachAdaptationRepository(private val db: AppDatabase) {
         states.forEach { state ->
             val node = SkillProgressionGraph.node(state.currentNodeId) ?: return@forEach
             val exerciseName = node.exerciseName ?: return@forEach
-            val logs = dao.getRecentSetLogsForExercise(exerciseName)
+            val exerciseId = ExerciseVideoCatalog.forExercise(exerciseName)?.key
+            val logs = dao.getRecentSetLogsForExercise(exerciseId, exerciseName)
             if (logs.isEmpty()) return@forEach
 
             val sessions = mutableListOf<SessionPerformance>()
