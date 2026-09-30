@@ -1427,7 +1427,7 @@ private fun WorkoutScreen(
     }
 
     val exercise = currentExerciseAt(index)
-
+    val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
     val exerciseId = video?.key
 
     LaunchedEffect(exerciseId, exercise.name) {
@@ -1438,7 +1438,6 @@ private fun WorkoutScreen(
     }
 
     val doneSets = completedSets[index] ?: 0
-    val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
     val totalSets = plan.exercises.sumOf { it.sets }
     val finishedSets = completedSets.values.sum()
     val allCompleted = plan.exercises.indices.all { i ->
