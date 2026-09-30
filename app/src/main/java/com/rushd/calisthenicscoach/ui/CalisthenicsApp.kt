@@ -49,6 +49,7 @@ import com.rushd.calisthenicscoach.data.OnboardingDraft
 import com.rushd.calisthenicscoach.domain.SkillStateEngine
 import com.rushd.calisthenicscoach.data.CoachRepository
 import com.rushd.calisthenicscoach.data.CoachAdaptationRepository
+import com.rushd.calisthenicscoach.data.CoachPlatformSeeder
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ArabicTerminology
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
@@ -131,12 +132,18 @@ fun CalisthenicsApp() {
 @Composable
 private fun CoachSetupGate(profile: UserProfile) {
     val context = LocalContext.current
-    val coachRepository = remember { CoachRepository(AppDatabase.get(context)) }
+    val database = remember { AppDatabase.get(context) }
+    val coachRepository = remember { CoachRepository(database) }
+    val platformSeeder = remember { CoachPlatformSeeder(database.coachPlatformDao()) }
     val scope = rememberCoroutineScope()
 
     var loaded by remember { mutableStateOf(false) }
     var assessments by remember { mutableStateOf(emptyList<com.rushd.calisthenicscoach.data.AssessmentResultEntity>()) }
     var showGeneratedPlan by remember { mutableStateOf(false) }
+
+    LaunchedEffect(platformSeeder) {
+        platformSeeder.seedFoundation()
+    }
 
     LaunchedEffect(coachRepository) {
         assessments = coachRepository.assessments.first()
