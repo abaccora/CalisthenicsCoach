@@ -2,10 +2,18 @@ package com.rushd.calisthenicscoach.domain
 
 import com.rushd.calisthenicscoach.R
 
-data class ExerciseVideo(val key: String, val nameEn: String, val nameAr: String, val category: String, val resId: Int)
+data class ExerciseVideo(
+    val key: String,
+    val nameEn: String,
+    val nameAr: String,
+    val category: String,
+    val resId: Int? = null,
+    val assetPath: String? = null,
+    val source: String = "LEGACY"
+)
 
 object ExerciseVideoCatalog {
-    val all = listOf(
+    private val legacy = listOf(
         ExerciseVideo("air_squat", "Air Squat", ArabicTerminology.exercise("Air Squat"), "Legs", R.raw.air_squat),
         ExerciseVideo("alternating_superman", "Alternating Superman", ArabicTerminology.exercise("Alternating Superman"), "Back", R.raw.alternating_superman),
         ExerciseVideo("bench_dip", "Bench Dip", ArabicTerminology.exercise("Bench Dip"), "Arms & Shoulders", R.raw.bench_dip),
@@ -62,6 +70,10 @@ object ExerciseVideoCatalog {
         ExerciseVideo("upward_facing_dog", "Upward Facing Dog", ArabicTerminology.exercise("Upward Facing Dog"), "Mobility", R.raw.upward_facing_dog),
     )
 
+    val all: List<ExerciseVideo> = HomeWorkoutMediaCatalog.all
+
+    val legacyFallback: List<ExerciseVideo> = legacy
+
     private val aliases = mapOf(
         "incline push-up" to "incline_push_up",
         "body row" to "inverted_row",
@@ -72,9 +84,13 @@ object ExerciseVideoCatalog {
     )
 
     fun forExercise(name: String): ExerciseVideo? {
+        HomeWorkoutMediaCatalog.forExercise(name)?.let { return it }
+
         val normalized = name.lowercase().replace("–", "-").trim()
-        aliases[normalized]?.let { key -> return all.firstOrNull { it.key == key } }
+        aliases[normalized]?.let { key -> return legacy.firstOrNull { it.key == key } }
         val loose = normalized.replace("-", " ").replace(Regex("\\s+"), " ")
-        return all.firstOrNull { it.nameEn.lowercase().replace("-", " ") == loose }
+        return legacy.firstOrNull { it.nameEn.lowercase().replace("-", " ") == loose }
     }
+
+    fun allWithFallback(): List<ExerciseVideo> = all + legacy
 }
