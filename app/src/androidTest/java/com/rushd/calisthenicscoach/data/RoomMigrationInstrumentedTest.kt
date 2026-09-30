@@ -26,7 +26,7 @@ class RoomMigrationInstrumentedTest {
     }
 
     @Test
-    fun migration1To2PreservesHistoryAndCreatesCoachTables() = runBlocking {
+    fun migration1To3PreservesHistoryAndCreatesCoachPlatformTables() = runBlocking {
         context.deleteDatabase(databaseName)
         val file = context.getDatabasePath(databaseName)
         file.parentFile?.mkdirs()
@@ -60,7 +60,7 @@ class RoomMigrationInstrumentedTest {
             AppDatabase::class.java,
             databaseName
         )
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .build()
 
         try {
@@ -75,7 +75,22 @@ class RoomMigrationInstrumentedTest {
                 "workout_substitutions",
                 "set_logs",
                 "assessment_results",
-                "skill_states"
+                "skill_states",
+                "athlete_profiles",
+                "assessments",
+                "source_actions",
+                "exercises",
+                "exercise_variants",
+                "skills",
+                "progression_nodes",
+                "progression_edges",
+                "training_programs",
+                "program_weeks",
+                "workouts",
+                "workout_exercises",
+                "readiness_checks",
+                "performance_history",
+                "personal_bests"
             ).forEach { table ->
                 assertTableExists(sql, table)
             }
