@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CoachDao {
-
     @Query("SELECT * FROM workout_sessions WHERE status = 'ACTIVE' ORDER BY startedAt DESC LIMIT 1")
     fun observeActiveSession(): Flow<WorkoutSessionEntity?>
 
