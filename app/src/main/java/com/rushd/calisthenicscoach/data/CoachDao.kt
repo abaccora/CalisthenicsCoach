@@ -97,11 +97,16 @@ interface CoachDao {
     @Query("""
         SELECT s.* FROM set_logs s
         INNER JOIN workout_sessions w ON w.id = s.sessionId
-        WHERE w.status = 'COMPLETED' AND s.exerciseName = :exerciseName
+        WHERE w.status = 'COMPLETED'
+          AND (
+            (:exerciseId IS NOT NULL AND s.exerciseId = :exerciseId)
+            OR (s.exerciseId IS NULL AND s.exerciseName = :exerciseName)
+          )
         ORDER BY s.loggedAt DESC
         LIMIT :limit
     """)
     suspend fun getRecentSetLogsForExercise(
+        exerciseId: String?,
         exerciseName: String,
         limit: Int = 60
     ): List<SetLogEntity>
