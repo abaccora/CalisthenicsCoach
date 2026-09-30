@@ -30,32 +30,36 @@ class CoachAdaptationRepository(private val db: AppDatabase) {
             val logs = dao.getRecentSetLogsForExercise(exerciseName)
             if (logs.isEmpty()) return@forEach
 
-            val sessions = logs
-                .groupBy { it.sessionId }
-                .map { (_, setLogs) ->
-                    SessionPerformance(
-                        nodeId = node.id,
-                        samples = setLogs
-                            .sortedBy { it.setIndex }
-                            .map { log ->
-                                PerformanceSample(
-                                    measurement = node.measurementType,
-                                    value = when (node.measurementType) {
-                                        MeasurementType.HOLD_SECONDS -> log.holdSeconds ?: log.reps ?: 0
-                                        MeasurementType.LEFT_RIGHT_REPS,
-                                        MeasurementType.UNILATERAL_REPS -> minOf(
-                                            log.leftReps ?: log.reps ?: 0,
-                                            log.rightReps ?: log.reps ?: 0
-                                        )
-                                        else -> log.reps ?: 0
-                                    },
-                                    rpe = log.rpe,
-                                    completed = log.completed
-                                )
-                            },
-                        completedAt = setLogs.maxOfOrNull { it.loggedAt } ?: 0L
-                    )
-                }
+            val sessions = mutableListOf<SessionPerformance>()
+            logs.groupBy { it.sessionId }.forEach { (sessionId, setLogs) ->
+                val workoutSession = dao.getSession(sessionId)
+                sessions += SessionPerformance(
+                    nodeId = node.id,
+                    samples = setLogs
+                        .sortedBy { it.setIndex }
+                        .map { log ->
+                            PerformanceSample(
+                                measurement = node.measurementType,
+                                value = when (node.measurementType) {
+                                    MeasurementType.HOLD_SECONDS -> log.holdSeconds ?: log.reps ?: 0
+                                    MeasurementType.LEFT_RIGHT_REPS,
+                                    MeasurementType.UNILATERAL_REPS -> minOf(
+                                        log.leftReps ?: log.reps ?: 0,
+                                        log.rightReps ?: log.reps ?: 0
+                                    )
+                                    else -> log.reps ?: 0
+                                },
+                                rpe = log.rpe,
+                                completed = log.completed
+                            )
+                        },
+                    perceivedDifficulty = workoutSession?.perceivedDifficulty,
+                    painReported = workoutSession?.painReported == true,
+                    completedAt = workoutSession?.endedAt
+                        ?: setLogs.maxOfOrNull { it.loggedAt }
+                        ?: 0L
+                )
+            }
 
             val recommendation = ProgressionEngine.evaluate(node.id, sessions)
             val targetId = recommendation.targetNode?.id ?: node.id
