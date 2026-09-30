@@ -53,6 +53,7 @@ import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
 import com.rushd.calisthenicscoach.domain.WorkoutPlan
 import com.rushd.calisthenicscoach.domain.SkillProgressionGraph
+import com.rushd.calisthenicscoach.domain.MeasurementType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -1259,17 +1260,26 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
 
     fun recordSet() {
         if (doneSets >= exercise.sets) return
-        val reps = repsInput.toIntOrNull()?.coerceAtLeast(0) ?: suggestedReps(exercise.reps)
+        val entered = repsInput.toIntOrNull()?.coerceAtLeast(0) ?: suggestedReps(exercise.reps)
         val rpe = rpeInput.toIntOrNull()?.coerceIn(1, 10) ?: 7
         completedSets[index] = doneSets + 1
-        performances.removeAll { it.exerciseName == exercise.name && it.setIndex == doneSets }
+        performances.removeAll { it.exerciseIndex == index && it.setIndex == doneSets }
         performances.add(
             SetPerformance(
                 exerciseIndex = index,
                 exerciseName = exercise.name,
                 setIndex = doneSets,
-                reps = reps,
-                rpe = rpe
+                reps = if (exercise.measurementType == MeasurementType.REPS) entered else 0,
+                rpe = rpe,
+                holdSeconds = if (exercise.measurementType == MeasurementType.HOLD_SECONDS) entered else null,
+                leftReps = if (
+                    exercise.measurementType == MeasurementType.LEFT_RIGHT_REPS ||
+                    exercise.measurementType == MeasurementType.UNILATERAL_REPS
+                ) entered else null,
+                rightReps = if (
+                    exercise.measurementType == MeasurementType.LEFT_RIGHT_REPS ||
+                    exercise.measurementType == MeasurementType.UNILATERAL_REPS
+                ) entered else null
             )
         )
         rest = exercise.restSec
@@ -1357,7 +1367,12 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                     if (!allCompleted && doneSets < exercise.sets) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             CompactNumberField(
-                                label = "التكرارات",
+                                label = when (exercise.measurementType) {
+                                    MeasurementType.HOLD_SECONDS -> "الثبات/ث"
+                                    MeasurementType.LEFT_RIGHT_REPS,
+                                    MeasurementType.UNILATERAL_REPS -> "لكل جهة"
+                                    else -> "التكرارات"
+                                },
                                 value = repsInput,
                                 onValueChange = { repsInput = it },
                                 modifier = Modifier.weight(1f),
@@ -1536,7 +1551,15 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
                 performances.filter { it.exerciseName == exercise.name }.sortedBy { it.setIndex }.forEach { item ->
                     ListItem(
                         headlineContent = { Text("المجموعة ${item.setIndex + 1}") },
-                        supportingContent = { Text("${item.reps} تكرار · RPE ${item.rpe}") },
+                        supportingContent = {
+                            Text(
+                                when {
+                                    item.holdSeconds != null -> "${item.holdSeconds} ثانية · RPE ${item.rpe}"
+                                    item.leftReps != null -> "${item.leftReps} لكل جهة · RPE ${item.rpe}"
+                                    else -> "${item.reps} تكرار · RPE ${item.rpe}"
+                                }
+                            )
+                        },
                         leadingContent = { Icon(Icons.Default.CheckCircle, contentDescription = null) }
                     )
                 }
@@ -1614,6 +1637,7 @@ private fun WorkoutSummaryScreen(
     onDone: () -> Unit
 ) {
     val totalReps = performances.sumOf { it.reps }
+    val totalHoldSeconds = performances.sumOf { it.holdSeconds ?: 0 }
     val avgRpe = if (performances.isEmpty()) 0.0 else performances.map { it.rpe }.average()
 
     Scaffold(
@@ -1646,7 +1670,12 @@ private fun WorkoutSummaryScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     MetricCard(Modifier.weight(1f), Icons.Default.Schedule, "${durationSec / 60}", "دقيقة")
                     MetricCard(Modifier.weight(1f), Icons.Default.FitnessCenter, "${performances.size}", "مجموعة")
-                    MetricCard(Modifier.weight(1f), Icons.Default.Repeat, "$totalReps", "تكرار")
+                    MetricCard(
+                        Modifier.weight(1f),
+                        Icons.Default.Repeat,
+                        if (totalHoldSeconds > 0) "${totalHoldSeconds}ث" else "$totalReps",
+                        if (totalHoldSeconds > 0) "ثبات" else "تكرار"
+                    )
                 }
             }
             item {
