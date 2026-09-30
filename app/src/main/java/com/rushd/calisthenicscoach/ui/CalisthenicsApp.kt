@@ -62,12 +62,13 @@ import com.rushd.calisthenicscoach.domain.DailySessionAdapter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private sealed class Tab(val route: String, val label: String) {
     data object Today : Tab("today", "اليوم")
     data object Plan : Tab("plan", "الخطة")
     data object Library : Tab("library", "المكتبة")
-    data object Progress : Tab("progress", "تقدمي")
+    data object Progress : Tab("progress", "التقدم")
 }
 
 private enum class DayState { Done, Today, Upcoming, Rest }
@@ -331,6 +332,11 @@ private fun TodayScreen(
         ProgramEngine.build(profile, effortHistory, skillStates)
     }
     val nextSession = blueprint.weeklyDays.firstOrNull { it.planId != null }
+    val heroPlan = if (activeSession != null) {
+        blueprint.plans.firstOrNull { it.id == activeSession.planId }
+    } else {
+        nextSession?.planId?.let { id -> blueprint.plans.firstOrNull { it.id == id } }
+    } ?: blueprint.plans.firstOrNull()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -374,6 +380,7 @@ private fun TodayScreen(
                 subtitle = if (activeSession != null) "سنفتح الجلسة عند آخر تمرين ومجموعة محفوظة" else (nextSession?.subtitle ?: blueprint.phaseTitle),
                 minutes = profile.sessionMinutes,
                 sessionCount = blueprint.weeklyDays.count { it.planId != null },
+                exerciseCount = heroPlan?.exercises?.size ?: 0,
                 level = profile.experience,
                 ctaLabel = if (activeSession != null) "استئناف الجلسة" else "ابدأ الجلسة",
                 onStart = onStart
@@ -453,7 +460,7 @@ private fun TodayScreen(
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "${ExerciseVideoCatalog.all.size} فيديو تقني",
+                            "${ExerciseVideoCatalog.all.size} فيديو توضيحي",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -476,6 +483,7 @@ private fun HeroWorkoutCard(
     subtitle: String,
     minutes: Int,
     sessionCount: Int,
+    exerciseCount: Int,
     level: String,
     ctaLabel: String,
     onStart: () -> Unit
@@ -503,7 +511,7 @@ private fun HeroWorkoutCard(
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Text(
-                        "اليوم · الجلسة 1 من $sessionCount",
+                        "برنامج اليوم · $sessionCount جلسات أسبوعيًا",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
@@ -529,7 +537,7 @@ private fun HeroWorkoutCard(
 
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 InfoChip(Icons.Default.Schedule, "$minutes دقيقة")
-                InfoChip(Icons.Default.FitnessCenter, "5 تمارين")
+                InfoChip(Icons.Default.FitnessCenter, "$exerciseCount تمارين")
                 InfoChip(Icons.Default.Speed, level)
             }
 
@@ -579,7 +587,7 @@ private fun TrainingJourney(
             val steps = listOf(
                 Triple(Icons.Default.Today, "اليوم", if (hasActiveSession) "جلسة محفوظة" else "حدد جاهزيتك"),
                 Triple(Icons.Default.CalendarMonth, "الخطة", "اعرف ما القادم"),
-                Triple(Icons.Default.FitnessCenter, "الجلسة", "نفذ وسجّل الأداء"),
+                Triple(Icons.Default.FitnessCenter, "الجلسة", "نفّذ وسجّل الأداء"),
                 Triple(Icons.Default.TrendingUp, "التقدم", "راجع القوة والمهارات")
             )
 
@@ -647,7 +655,7 @@ private fun TrainingJourney(
 @Composable
 private fun WeekOverview(trainingDays: Set<Int>) {
     val labels = listOf("س", "ح", "ن", "ث", "ر", "خ", "ج")
-    val currentTrainingDay = trainingDays.minOrNull()
+    val currentTrainingDay = currentWeekDayNumber()
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -709,7 +717,7 @@ private fun PlanScreen(
     }
     val dayNames = listOf("السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة")
     val sessionsByDay = blueprint.weeklyDays.associateBy { it.dayNumber }
-    val firstTrainingDay = blueprint.weeklyDays.firstOrNull { it.planId != null }?.dayNumber
+    val currentDayNumber = currentWeekDayNumber()
     val weekDays = (1..7).map { dayNumber ->
         val session = sessionsByDay[dayNumber]
         if (session != null) {
@@ -717,7 +725,7 @@ private fun PlanScreen(
                 day = dayNames[dayNumber - 1],
                 title = session.title,
                 subtitle = session.subtitle,
-                state = if (dayNumber == firstTrainingDay) DayState.Today else DayState.Upcoming,
+                state = if (dayNumber == currentDayNumber) DayState.Today else DayState.Upcoming,
                 planId = session.planId
             )
         } else {
@@ -801,7 +809,7 @@ private fun PlanScreen(
             )
         }
 
-        item { PhaseTimeline() }
+        item { PhaseTimeline(blueprint.totalWeeks) }
     }
 }
 
@@ -869,13 +877,23 @@ private fun PlanDayCard(item: WeekDay, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PhaseTimeline() {
-    val phases = listOf(
-        "التأسيس" to "الأسبوع 1–2",
-        "القوة" to "الأسبوع 3–4",
-        "التحكم والمهارة" to "الأسبوع 5",
-        "التقييم" to "الأسبوع 6"
-    )
+private fun PhaseTimeline(totalWeeks: Int) {
+    val phases = if (totalWeeks >= 8) {
+        listOf(
+            "التأسيس والتحكم" to "الأسبوع 1–2",
+            "بناء القوة" to "الأسبوع 3–4",
+            "القوة الخاصة بالمهارة" to "الأسبوع 5–6",
+            "دمج المهارة" to "الأسبوع 7",
+            "التقييم وضبط الخطة" to "الأسبوع 8"
+        )
+    } else {
+        listOf(
+            "التأسيس والتحكم" to "الأسبوع 1–2",
+            "بناء القوة" to "الأسبوع 3–4",
+            "التحكم والمهارة" to "الأسبوع 5",
+            "التقييم وضبط الخطة" to "الأسبوع 6"
+        )
+    }
 
     Column {
         phases.forEachIndexed { index, phase ->
@@ -930,14 +948,15 @@ private fun ExerciseLibraryScreen() {
     var category by rememberSaveable { mutableStateOf("الكل") }
     var selected by remember { mutableStateOf<ExerciseVideo?>(null) }
 
-    val categories = listOf("الكل", "صدر", "ظهر", "أرجل", "جذع", "كارديو", "مرونة")
+    val categories = listOf("الكل", "الصدر", "الظهر", "الساقان", "الجذع", "الذراعان والكتفان", "اللياقة القلبية", "المرونة والحركة")
     val categoryMap = mapOf(
-        "صدر" to "Chest",
-        "ظهر" to "Back",
-        "أرجل" to "Legs",
-        "جذع" to "Core",
-        "كارديو" to "Cardio",
-        "مرونة" to "Mobility"
+        "الصدر" to "Chest",
+        "الظهر" to "Back",
+        "الساقان" to "Legs",
+        "الجذع" to "Core",
+        "الذراعان والكتفان" to "Arms & Shoulders",
+        "اللياقة القلبية" to "Cardio",
+        "المرونة والحركة" to "Mobility"
     )
 
     val filtered = remember(query, category) {
@@ -964,7 +983,7 @@ private fun ExerciseLibraryScreen() {
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "${ExerciseVideoCatalog.all.size} فيديو تقني يعمل دون اتصال",
+                "${ExerciseVideoCatalog.all.size} فيديو توضيحي يعمل دون اتصال",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -976,7 +995,7 @@ private fun ExerciseLibraryScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                placeholder = { Text("ابحث عن تمرين أو عضلة") },
+                placeholder = { Text("ابحث عن تمرين أو مجموعة عضلية") },
                 shape = RoundedCornerShape(20.dp)
             )
         }
@@ -1055,7 +1074,7 @@ private fun ExerciseLibraryScreen() {
                         .clip(RoundedCornerShape(22.dp))
                 )
                 Text(
-                    "شاهد الحركة كاملة قبل الأداء، وركز على الإيقاع والتحكم والمدى المناسب.",
+                    "شاهد الحركة كاملة قبل الأداء، وركّز على التحكم والمدى الحركي المناسب.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(20.dp))
@@ -1224,7 +1243,7 @@ private fun ProgressScreen() {
                                 if (next != null)
                                     "الخطوة التالية: ${next.titleAr} · معيار الانتقال ${next.masteryRule.minSets} مجموعات × ${next.masteryRule.targetValue}"
                                 else
-                                    "أنت في أعلى مستوى معرف حاليًا لهذا المسار.",
+                                    "وصلت إلى أعلى مستوى محدد حاليًا في هذا المسار.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1784,7 +1803,7 @@ private fun WorkoutScreen(
             ) {
                 Text("استبدال ${exercise.ArabicName}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    "اختر حركة من الفئة نفسها. ستبقى المجموعات والراحة كما هي.",
+                    "اختر بديلًا مناسبًا من الحركات المتاحة. ستبقى المجموعات وفترات الراحة كما هي.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 alternatives.forEach { option ->
@@ -1942,7 +1961,7 @@ private fun WorkoutSummaryScreen(
                         Column {
                             Text(stringResource(R.string.summary_pain), fontWeight = FontWeight.Bold)
                             Text(
-                                "سنأخذ ذلك بالحسبان عند ضبط الحركة التالية.",
+                                "سيستخدم التطبيق هذه الملاحظة عند ضبط الجلسات التالية.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -2059,6 +2078,11 @@ private fun StatPill(value: String, label: String, modifier: Modifier = Modifier
     }
 }
 
+private fun currentWeekDayNumber(): Int {
+    // java.time uses Monday=1..Sunday=7; the app week is Saturday=1..Friday=7.
+    return ((LocalDate.now().dayOfWeek.value + 1) % 7) + 1
+}
+
 private fun tabIcon(tab: Tab) = when (tab) {
     Tab.Today -> Icons.Default.Home
     Tab.Plan -> Icons.Default.CalendarMonth
@@ -2123,7 +2147,7 @@ private fun AthleteProfileScreen(
             }
             item {
                 Text(
-                    "التكيف مع الأداء",
+                    "تكييف الخطة حسب الأداء",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -2149,7 +2173,7 @@ private fun AthleteProfileScreen(
                                 )
                             },
                             supportingContent = {
-                                Text("أفضل تكرارات ${item.bestReps} · متوسط RPE ${String.format("%.1f", item.avgRpe)}")
+                                Text("أفضل عدد تكرارات ${item.bestReps} · متوسط RPE ${String.format("%.1f", item.avgRpe)}")
                             },
                             leadingContent = {
                                 Icon(Icons.Default.Insights, contentDescription = null)
@@ -2183,22 +2207,7 @@ private fun ProfileLine(label: String, value: String) {
     }
 }
 
-private fun displayProfileValue(value: String): String = when (value) {
-    "Pull-up" -> "العقلة"
-    "Muscle-up" -> "المسل أب"
-    "Handstand" -> "الوقوف على اليدين"
-    "Front Lever" -> "الفرونت ليفر"
-    "Planche" -> "البلانش"
-    else -> value
-}
+private fun displayProfileValue(value: String): String = ArabicTerminology.goal(value)
 
 
-private fun exerciseCategoryAr(value: String): String = when (value) {
-    "Chest" -> "الصدر"
-    "Back" -> "الظهر"
-    "Legs" -> "الأرجل"
-    "Core" -> "الجذع"
-    "Cardio" -> "اللياقة"
-    "Mobility" -> "المرونة والحركة"
-    else -> value
-}
+private fun exerciseCategoryAr(value: String): String = ArabicTerminology.category(value)
