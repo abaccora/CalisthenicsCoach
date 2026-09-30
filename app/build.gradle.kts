@@ -13,8 +13,8 @@ android {
         applicationId = "com.rushd.calisthenicscoach"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "2.0.0-beta04-final"
+        versionCode = 8
+        versionName = "2.1.0-alpha01"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
