@@ -54,7 +54,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: calisthenics-videos-mobile-v2
+          key: calisthenics-videos-mobile-v3
           save-always: true
 
       - name: Prepare exercise video library
@@ -122,7 +122,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: calisthenics-videos-mobile-v2
+          key: calisthenics-videos-mobile-v3
 
       - name: Prepare exercise video library
         if: steps.integration-video-cache.outputs.cache-hit != 'true'
