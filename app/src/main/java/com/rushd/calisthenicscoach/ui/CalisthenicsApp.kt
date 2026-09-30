@@ -1459,6 +1459,9 @@ private fun WorkoutScreen(
         (completedSets[i] ?: 0) >= plan.exercises[i].sets
     }
     val durationSec = ((System.currentTimeMillis() - startedAt) / 1000L).toInt().coerceAtLeast(0)
+    val workoutVideoHeight = (
+        androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.28f
+    ).coerceIn(150f, 250f).dp
 
     fun recordSet() {
         if (doneSets >= exercise.sets) return
@@ -1798,7 +1801,7 @@ private fun WorkoutScreen(
                 if (video != null) {
                     ExerciseVideoPlayer(
                         video = video,
-                        modifier = Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)),
+                        modifier = Modifier.fillMaxWidth().height(workoutVideoHeight).clip(RoundedCornerShape(26.dp)),
                         showControls = false,
                         autoPlay = true
                     )
