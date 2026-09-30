@@ -62,7 +62,10 @@ class MediaCoverageTest {
         val squat = ExerciseVideoCatalog.forExercise("Air Squat")
 
         assertTrue(deadBug?.source?.startsWith("HOME_WORKOUT") == true)
+        assertNotNull("Dead Bug modern media must retain a legacy fallback", deadBug?.fallbackResId)
         assertTrue(birdDog?.source?.startsWith("HOME_WORKOUT") == true)
+        assertNotNull("Alternating Superman modern media must retain a legacy fallback", birdDog?.fallbackResId)
         assertTrue(squat?.source?.startsWith("HOME_WORKOUT") == true)
+        assertNotNull("Air Squat modern media must retain a legacy fallback", squat?.fallbackResId)
     }
 }

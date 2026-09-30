@@ -1,5 +1,6 @@
 package com.rushd.calisthenicscoach.ui
 
+import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.rushd.calisthenicscoach.R
@@ -62,9 +64,12 @@ import com.rushd.calisthenicscoach.domain.SkillProgressionGraph
 import com.rushd.calisthenicscoach.domain.MeasurementType
 import com.rushd.calisthenicscoach.domain.DailySessionAdapter
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.io.File
 
 private sealed class Tab(val route: String, val label: String) {
     data object Today : Tab("today", "اليوم")
@@ -1091,6 +1096,46 @@ private fun ExerciseLibraryScreen() {
     }
 }
 
+private suspend fun resolveExerciseVideoUri(
+    context: Context,
+    video: ExerciseVideo
+): Uri? = withContext(Dispatchers.IO) {
+    val assetUri = video.assetPath
+        ?.takeIf { it.isNotBlank() }
+        ?.let { assetPath ->
+            runCatching {
+                val mediaDir = File(context.cacheDir, "exercise_media").apply { mkdirs() }
+                val target = File(mediaDir, "${video.key}.mp4")
+
+                if (!target.exists() || target.length() == 0L) {
+                    val temp = File(mediaDir, "${video.key}.tmp")
+                    if (temp.exists()) temp.delete()
+
+                    context.assets.open(assetPath).use { input ->
+                        temp.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+
+                    require(temp.length() > 0L) { "Empty exercise media asset: $assetPath" }
+                    if (target.exists()) target.delete()
+                    check(temp.renameTo(target)) { "Unable to cache exercise media: $assetPath" }
+                }
+
+                Uri.fromFile(target)
+            }.getOrNull()
+        }
+
+    if (assetUri != null) {
+        return@withContext assetUri
+    }
+
+    val resourceId = video.resId ?: video.fallbackResId
+    resourceId?.let {
+        Uri.parse("android.resource://${context.packageName}/$it")
+    }
+}
+
 @Composable
 fun ExerciseVideoPlayer(
     video: ExerciseVideo,
@@ -1099,49 +1144,103 @@ fun ExerciseVideoPlayer(
     autoPlay: Boolean = true
 ) {
     val context = LocalContext.current
-    val uri = remember(video.key, video.resId, video.assetPath, context.packageName) {
-        when {
-            !video.assetPath.isNullOrBlank() -> Uri.parse("asset:///${video.assetPath}")
-            video.resId != null -> Uri.parse("android.resource://${context.packageName}/${video.resId}")
-            else -> Uri.EMPTY
-        }
+    var playbackError by remember(video.key) { mutableStateOf<String?>(null) }
+    var isReady by remember(video.key) { mutableStateOf(false) }
+
+    val uri by produceState<Uri?>(
+        initialValue = null,
+        key1 = video.key,
+        key2 = video.assetPath,
+        key3 = video.resId ?: video.fallbackResId
+    ) {
+        value = resolveExerciseVideoUri(context, video)
     }
 
-    val player = remember(video.key, uri) {
+    val player = remember(video.key) {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE
             volume = 0f
-            playWhenReady = autoPlay
-            if (uri != Uri.EMPTY) {
-                setMediaItem(MediaItem.fromUri(uri))
-                prepare()
-            }
         }
     }
 
-    LaunchedEffect(autoPlay) {
+    LaunchedEffect(uri, autoPlay) {
+        playbackError = null
+        isReady = false
+
+        val mediaUri = uri
+        if (mediaUri == null) {
+            playbackError = "لا يتوفر فيديو صالح لهذا التمرين"
+            return@LaunchedEffect
+        }
+
+        player.setMediaItem(MediaItem.fromUri(mediaUri))
+        player.prepare()
         player.playWhenReady = autoPlay
         if (autoPlay) player.play() else player.pause()
     }
 
     DisposableEffect(player) {
-        onDispose { player.release() }
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                isReady = playbackState == Player.STATE_READY
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                playbackError = error.errorCodeName
+            }
+        }
+
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
     }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                useController = showControls
-                this.player = player
-                keepScreenOn = true
+    Box(
+        modifier = modifier.background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = showControls
+                    this.player = player
+                    keepScreenOn = true
+                    setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                }
+            },
+            update = { view ->
+                view.useController = showControls
+                view.player = player
             }
-        },
-        update = { view ->
-            view.useController = showControls
-            view.player = player
+        )
+
+        when {
+            playbackError != null -> {
+                Surface(
+                    modifier = Modifier.padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.VideocamOff, contentDescription = null)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "تعذر تشغيل فيديو التمرين",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            !isReady -> CircularProgressIndicator()
         }
-    )
+    }
 }
 
 @Composable
@@ -1570,54 +1669,69 @@ private fun WorkoutScreen(
                 ) {
                     when {
                         rest > 0 -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        "وقت الراحة",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        "%02d:%02d".format(rest / 60, rest % 60),
-                                        style = MaterialTheme.typography.headlineLarge,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-                                Spacer(Modifier.weight(1f))
-                                FilledTonalButton(
-                                    onClick = { rest = (rest + 15).coerceAtMost(300) }
-                                ) { Text("+15") }
-                                Spacer(Modifier.width(6.dp))
-                                FilledTonalButton(
-                                    onClick = { rest = (rest + 30).coerceAtMost(300) }
-                                ) { Text("+30") }
-                            }
-
                             val nextDuringRest = if ((completedSets[index] ?: 0) >= exercise.sets) {
                                 nextIncomplete(index)
                             } else {
                                 index
                             }
-                            if (nextDuringRest != null) {
-                                Text(
-                                    if (nextDuringRest == index)
-                                        "بعد الراحة · المجموعة ${(completedSets[index] ?: 0) + 1} من ${exercise.sets}"
-                                    else
-                                        "التالي · ${currentExerciseAt(nextDuringRest).ArabicName}",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                                ) {
+                                    Text(
+                                        "الراحة",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "%02d:%02d".format(rest / 60, rest % 60),
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+
+                                TextButton(
+                                    onClick = { rest = (rest + 15).coerceAtMost(300) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) { Text("+15") }
+
+                                TextButton(
+                                    onClick = { rest = (rest + 30).coerceAtMost(300) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) { Text("+30") }
+
+                                FilledTonalButton(
+                                    onClick = { rest = 0 },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.SkipNext,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("تجاوز")
+                                }
                             }
 
-                            OutlinedButton(
-                                onClick = { rest = 0 },
-                                modifier = Modifier.fillMaxWidth().height(50.dp)
-                            ) {
-                                Icon(Icons.Default.SkipNext, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("تجاوز الراحة")
+                            if (nextDuringRest != null) {
+                                Text(
+                                    if (nextDuringRest == index) {
+                                        "بعد الراحة · المجموعة ${(completedSets[index] ?: 0) + 1} من ${exercise.sets}"
+                                    } else {
+                                        "التالي · ${currentExerciseAt(nextDuringRest).ArabicName}"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
 
@@ -2201,6 +2315,13 @@ private fun AthleteProfileScreen(
     history: List<ExerciseHistoryStat>,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+    val versionName = remember(context) {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -2296,6 +2417,13 @@ private fun AthleteProfileScreen(
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
+            }
+            item {
+                Text(
+                    "الإصدار $versionName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
