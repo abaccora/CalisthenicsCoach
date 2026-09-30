@@ -1,0 +1,59 @@
+<resources>
+    <string name="app_name">Calisthenics Coach</string>
+
+    <string name="nav_today">اليوم</string>
+    <string name="nav_plan">الخطة</string>
+    <string name="nav_library">المكتبة</string>
+    <string name="nav_progress">التقدم</string>
+
+    <string name="assessment_title">تقييم البداية</string>
+    <string name="assessment_previous">السابق</string>
+    <string name="assessment_next">التالي</string>
+    <string name="assessment_finish">إنهاء التقييم</string>
+
+    <string name="plan_ready_title">تم إعداد برنامجك</string>
+    <string name="plan_start">ابدأ خطتي</string>
+
+    <string name="readiness_title">جاهزية اليوم</string>
+    <string name="readiness_cancel">إلغاء</string>
+    <string name="readiness_prepare">إعداد جلسة اليوم</string>
+
+    <string name="workout_rest">راحة</string>
+    <string name="workout_skip_rest">تجاوز</string>
+    <string name="workout_reps">التكرارات</string>
+    <string name="workout_hold_seconds">مدة الثبات (ث)</string>
+    <string name="workout_per_side">لكل جهة</string>
+    <string name="workout_rpe">الجهد المدرك (RPE)</string>
+    <string name="workout_substitute">اختيار بديل</string>
+    <string name="workout_previous_performance">الأداء السابق مقارنة باليوم</string>
+    <string name="workout_finish">إنهاء الجلسة وعرض الملخص</string>
+    <string name="workout_next">التمرين التالي</string>
+    <string name="workout_next_named">التالي · %1$s</string>
+    <string name="workout_complete">اكتملت الجلسة</string>
+    <string name="workout_record_set">تسجيل المجموعة %1$d من %2$d</string>
+    <string name="workout_rest_seconds">راحة · %1$d ث</string>
+    <string name="workout_next_preview">التالي: %1$s</string>
+    <string name="workout_add_30">+30 ث</string>
+    <string name="workout_set_short">المجموعة</string>
+    <string name="workout_previous_short">السابقة</string>
+    <string name="workout_today_short">اليوم</string>
+    <string name="workout_seconds_value">%1$d ث</string>
+    <string name="workout_side_value">%1$d / جهة</string>
+    <string name="workout_reps_value">%1$d تكرار</string>
+    <string name="workout_sets_count">%1$d مجموعات</string>
+    <string name="workout_target_label">الهدف</string>
+    <string name="workout_rest_label">الراحة</string>
+    <string name="workout_performance_note">ملاحظة الأداء</string>
+    <string name="workout_logged_sets">المجموعات المسجلة</string>
+    <string name="workout_set_number">المجموعة %1$d</string>
+    <string name="workout_set_progress">المجموعة %1$d من %2$d</string>
+    <string name="workout_saved_exit">حفظ والخروج</string>
+
+    <string name="summary_title">اكتملت الجلسة</string>
+    <string name="summary_save_finish">حفظ وإنهاء</string>
+    <string name="summary_how_was_session">كيف كانت الجلسة؟</string>
+    <string name="summary_easy">سهلة</string>
+    <string name="summary_right">مناسبة</string>
+    <string name="summary_too_hard">صعبة جدًا</string>
+    <string name="summary_pain">شعرت بألم أو انزعاج أثناء الجلسة</string>
+</resources>
