@@ -41,6 +41,8 @@ import com.rushd.calisthenicscoach.data.ActiveWorkoutSession
 import com.rushd.calisthenicscoach.data.WorkoutSessionRepository
 import com.rushd.calisthenicscoach.data.UserPreferencesRepository
 import com.rushd.calisthenicscoach.data.OnboardingDraft
+import com.rushd.calisthenicscoach.domain.SkillStateEngine
+import com.rushd.calisthenicscoach.data.CoachRepository
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
 import com.rushd.calisthenicscoach.domain.SamplePrograms
@@ -111,7 +113,68 @@ fun CalisthenicsApp() {
         return
     }
 
-    MainExperience(profile = savedProfile!!)
+    CoachSetupGate(profile = savedProfile!!)
+}
+
+@Composable
+private fun CoachSetupGate(profile: UserProfile) {
+    val context = LocalContext.current
+    val coachRepository = remember { CoachRepository(AppDatabase.get(context)) }
+    val scope = rememberCoroutineScope()
+
+    var loaded by remember { mutableStateOf(false) }
+    var assessments by remember { mutableStateOf(emptyList<com.rushd.calisthenicscoach.data.AssessmentResultEntity>()) }
+    var showGeneratedPlan by remember { mutableStateOf(false) }
+
+    LaunchedEffect(coachRepository) {
+        assessments = coachRepository.assessments.first()
+        loaded = true
+    }
+
+    if (!loaded) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (assessments.isEmpty()) {
+        GuidedAssessmentScreen(
+            profile = profile,
+            onComplete = { results ->
+                scope.launch {
+                    coachRepository.saveAssessment(results)
+                    coachRepository.saveSkillStates(
+                        SkillStateEngine.initialStates(profile, results)
+                    )
+                    assessments = results
+                    showGeneratedPlan = true
+                }
+            }
+        )
+        return
+    }
+
+    val assessmentMap = remember(assessments) { assessments.associate { it.metricId to it.value } }
+    val assessedProfile = remember(profile, assessmentMap) {
+        profile.copy(
+            maxPushUps = assessmentMap["push_reps"]?.toInt() ?: profile.maxPushUps,
+            maxPullUps = assessmentMap["pull_reps"]?.toInt() ?: profile.maxPullUps,
+            maxDips = assessmentMap["dip_reps"]?.toInt() ?: profile.maxDips,
+            hollowHoldSec = assessmentMap["hollow_hold"]?.toInt() ?: profile.hollowHoldSec
+        )
+    }
+
+    if (showGeneratedPlan) {
+        GeneratedPlanScreen(
+            profile = assessedProfile,
+            blueprint = ProgramEngine.build(assessedProfile),
+            onStart = { showGeneratedPlan = false }
+        )
+        return
+    }
+
+    MainExperience(profile = assessedProfile)
 }
 
 @Composable
