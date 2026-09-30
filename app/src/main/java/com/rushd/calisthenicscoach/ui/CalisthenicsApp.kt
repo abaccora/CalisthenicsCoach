@@ -51,6 +51,7 @@ import com.rushd.calisthenicscoach.domain.SamplePrograms
 import com.rushd.calisthenicscoach.domain.ProgramEngine
 import com.rushd.calisthenicscoach.domain.UserProfile
 import com.rushd.calisthenicscoach.domain.WorkoutPlan
+import com.rushd.calisthenicscoach.domain.SkillProgressionGraph
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -949,9 +950,15 @@ private fun ExerciseVideoPlayer(
 @Composable
 private fun ProgressScreen() {
     val context = LocalContext.current
-    val dao = remember { AppDatabase.get(context).workoutDao() }
-    val history by dao.observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
+    val db = remember { AppDatabase.get(context) }
+    val history by db.workoutDao().observeAll().collectAsStateWithLifecycle(initialValue = emptyList())
+    val skillStates by db.coachDao().observeSkillStates().collectAsStateWithLifecycle(initialValue = emptyList())
     val totalMinutes = history.sumOf { it.durationSec } / 60
+    val masteredTracks = skillStates.count { state ->
+        val track = SkillProgressionGraph.track(state.skillId)
+        val node = SkillProgressionGraph.node(state.currentNodeId)
+        track != null && node != null && node.level >= (track.nodes.maxOfOrNull { it.level } ?: Int.MAX_VALUE)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -965,7 +972,7 @@ private fun ProgressScreen() {
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "الاستمرارية والتقنية أهم من السرعة.",
+                "تابع تطور القوة والمهارات، لا عدد الجلسات فقط.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -976,7 +983,7 @@ private fun ProgressScreen() {
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.CheckCircle,
                     value = "${history.size}",
-                    label = "جلسات"
+                    label = "جلسة"
                 )
                 MetricCard(
                     modifier = Modifier.weight(1f),
@@ -987,36 +994,75 @@ private fun ProgressScreen() {
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.EmojiEvents,
-                    value = "4",
-                    label = "مهارات"
+                    value = "$masteredTracks",
+                    label = "مهارة مكتملة"
                 )
             }
         }
 
         item {
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-            ) {
-                Column(
-                    Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            Text(
+                "مسارات المهارات",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "كل مسار يوضح مستواك الحالي والخطوة التالية المطلوبة.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (skillStates.isEmpty()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
-                        "تقدم المهارات",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        "أكمل تقييم البداية ليحدد التطبيق موقعك في مسارات المهارات.",
+                        modifier = Modifier.padding(18.dp)
                     )
-                    SamplePrograms.skills.forEach { skill ->
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row {
-                                Text(skill.name, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.weight(1f))
-                                Text("${skill.progress}%")
+                }
+            }
+        } else {
+            items(skillStates) { state ->
+                val track = SkillProgressionGraph.track(state.skillId)
+                val node = SkillProgressionGraph.node(state.currentNodeId)
+                if (track != null && node != null) {
+                    val maxLevel = track.nodes.maxOfOrNull { it.level } ?: node.level
+                    val next = SkillProgressionGraph.next(node.id)
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column(
+                            Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(track.titleAr, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                                    Text(
+                                        "المستوى ${node.level} من $maxLevel · ${node.titleAr}",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    "${((node.level.toFloat() / maxLevel.toFloat()) * 100).toInt()}%",
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             LinearProgressIndicator(
-                                progress = { skill.progress / 100f },
+                                progress = { node.level.toFloat() / maxLevel.toFloat() },
                                 modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                if (next != null)
+                                    "الخطوة التالية: ${next.titleAr} · معيار الانتقال ${next.mastery.sets} مجموعات × ${next.mastery.target}"
+                                else
+                                    "أنت في أعلى مستوى معرف حاليًا لهذا المسار.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -1042,11 +1088,7 @@ private fun ProgressScreen() {
                         Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            Icons.Default.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(34.dp)
-                        )
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(34.dp))
                         Spacer(Modifier.height(8.dp))
                         Text("أكمل أول جلسة ليظهر سجلك هنا.")
                     }
@@ -1080,7 +1122,6 @@ private fun ProgressScreen() {
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
