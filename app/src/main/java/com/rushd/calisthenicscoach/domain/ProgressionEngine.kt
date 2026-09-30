@@ -1,0 +1,183 @@
+package com.rushd.calisthenicscoach.domain
+
+enum class CoachDecision {
+    MAINTAIN,
+    INCREASE_REPS,
+    INCREASE_VOLUME,
+    PROGRESS_VARIATION,
+    REGRESS_VARIATION,
+    DELOAD
+}
+
+data class PerformanceSample(
+    val measurement: MeasurementType,
+    val value: Int,
+    val rpe: Int?,
+    val completed: Boolean = true
+)
+
+data class SessionPerformance(
+    val nodeId: String,
+    val samples: List<PerformanceSample>,
+    val perceivedDifficulty: String? = null,
+    val painReported: Boolean = false,
+    val completedAt: Long = System.currentTimeMillis()
+)
+
+data class CoachRecommendation(
+    val decision: CoachDecision,
+    val reasonAr: String,
+    val currentNode: ProgressionNode,
+    val targetNode: ProgressionNode? = null,
+    val volumeMultiplier: Double = 1.0,
+    val restAdjustmentSec: Int = 0
+)
+
+object ProgressionEngine {
+
+    fun evaluate(
+        nodeId: String,
+        recentSessions: List<SessionPerformance>
+    ): CoachRecommendation {
+        val node = SkillProgressionGraph.node(nodeId)
+            ?: error("Unknown progression node: $nodeId")
+
+        val recent = recentSessions
+            .filter { it.nodeId == nodeId }
+            .sortedByDescending { it.completedAt }
+            .take(6)
+
+        if (recent.isEmpty()) {
+            return CoachRecommendation(
+                decision = CoachDecision.MAINTAIN,
+                reasonAr = "نحتاج أولًا إلى بيانات فعلية من جلساتك قبل تعديل مستوى الحركة.",
+                currentNode = node
+            )
+        }
+
+        if (recent.any { it.painReported }) {
+            return CoachRecommendation(
+                decision = CoachDecision.REGRESS_VARIATION,
+                reasonAr = "تم الإبلاغ عن ألم أو انزعاج؛ الأفضل الرجوع إلى نسخة أقل تطلبًا حتى إعادة التقييم.",
+                currentNode = node,
+                targetNode = SkillProgressionGraph.previous(node.id),
+                volumeMultiplier = 0.75,
+                restAdjustmentSec = 20
+            )
+        }
+
+        val lastThree = recent.take(3)
+        val completionRate = lastThree.map { session ->
+            masteryCompletion(session.samples, node.mastery)
+        }.average()
+
+        val avgRpe = lastThree
+            .flatMap { it.samples }
+            .mapNotNull { it.rpe }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+
+        val successfulSessions = recent.count { session ->
+            isMasteredSession(session.samples, node.mastery)
+        }
+
+        if (successfulSessions >= node.mastery.requiredSuccessfulSessions) {
+            val next = SkillProgressionGraph.next(node.id)
+            if (next != null) {
+                return CoachRecommendation(
+                    decision = CoachDecision.PROGRESS_VARIATION,
+                    reasonAr = "حققت معيار الإتقان في أكثر من جلسة بجودة مناسبة؛ حان وقت الانتقال إلى النسخة التالية.",
+                    currentNode = node,
+                    targetNode = next
+                )
+            }
+        }
+
+        if (avgRpe != null && avgRpe >= 9.2 && completionRate < 0.8) {
+            return CoachRecommendation(
+                decision = CoachDecision.DELOAD,
+                reasonAr = "الشدة مرتفعة والهدف لم يكتمل في الجلسات الأخيرة؛ سنخفف الحجم مؤقتًا ونزيد الراحة.",
+                currentNode = node,
+                volumeMultiplier = 0.7,
+                restAdjustmentSec = 30
+            )
+        }
+
+        if (completionRate < 0.55) {
+            val previous = SkillProgressionGraph.previous(node.id)
+            return CoachRecommendation(
+                decision = if (previous != null) CoachDecision.REGRESS_VARIATION else CoachDecision.MAINTAIN,
+                reasonAr = if (previous != null)
+                    "الهدف الحالي ما يزال أعلى من القدرة المستقرة؛ سنرجع خطوة لبناء قاعدة أقوى."
+                else
+                    "سنثبت المستوى الحالي ونخفض حجم العمل حتى يتحسن التنفيذ.",
+                currentNode = node,
+                targetNode = previous,
+                volumeMultiplier = 0.8,
+                restAdjustmentSec = 20
+            )
+        }
+
+        if (completionRate >= 0.95 && (avgRpe == null || avgRpe <= 7.0)) {
+            return CoachRecommendation(
+                decision = CoachDecision.INCREASE_VOLUME,
+                reasonAr = "أنهيت العمل المطلوب بسهولة نسبية؛ سنزيد الحمل تدريجيًا قبل الانتقال إلى نسخة أصعب.",
+                currentNode = node,
+                volumeMultiplier = 1.15
+            )
+        }
+
+        if (completionRate >= 0.85 && (avgRpe == null || avgRpe <= 8.0)) {
+            return CoachRecommendation(
+                decision = CoachDecision.INCREASE_REPS,
+                reasonAr = "المستوى مناسب ومستقر؛ سنرفع التكرارات أو مدة الثبات تدريجيًا.",
+                currentNode = node
+            )
+        }
+
+        return CoachRecommendation(
+            decision = CoachDecision.MAINTAIN,
+            reasonAr = "المستوى الحالي مناسب الآن؛ سنحافظ عليه حتى يصبح الأداء أكثر استقرارًا.",
+            currentNode = node
+        )
+    }
+
+    private fun masteryCompletion(
+        samples: List<PerformanceSample>,
+        rule: MasteryRule
+    ): Double {
+        val matching = samples
+            .filter { it.completed && compatible(it.measurement, rule.measurement) }
+            .take(rule.sets)
+
+        if (matching.isEmpty()) return 0.0
+
+        val achieved = matching.sumOf { sample ->
+            minOf(sample.value.toDouble() / rule.target.toDouble(), 1.0)
+        }
+        val setCoverage = matching.size.toDouble() / rule.sets.toDouble()
+        return (achieved / matching.size.toDouble()) * setCoverage
+    }
+
+    private fun isMasteredSession(
+        samples: List<PerformanceSample>,
+        rule: MasteryRule
+    ): Boolean {
+        val matching = samples
+            .filter { it.completed && compatible(it.measurement, rule.measurement) }
+            .take(rule.sets)
+
+        if (matching.size < rule.sets) return false
+
+        return matching.all { sample ->
+            sample.value >= rule.target &&
+                (sample.rpe == null || sample.rpe <= rule.maxRpe)
+        }
+    }
+
+    private fun compatible(actual: MeasurementType, required: MeasurementType): Boolean {
+        if (actual == required) return true
+        return (actual == MeasurementType.UNILATERAL_REPS && required == MeasurementType.LEFT_RIGHT_REPS) ||
+            (actual == MeasurementType.LEFT_RIGHT_REPS && required == MeasurementType.UNILATERAL_REPS)
+    }
+}
