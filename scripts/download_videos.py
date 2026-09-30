@@ -83,6 +83,9 @@ def normalize_video(path: Path) -> None:
         "-level", "3.1",
         "-movflags", "+faststart",
         "-an",
+        "-dn",
+        "-map_metadata", "-1",
+        "-write_tmcd", "0",
         str(temp),
     ]
     subprocess.run(command, check=True)
