@@ -77,7 +77,7 @@ object HomeWorkoutMediaCatalog {
 
     private val exerciseAliases: Map<String, String> = mapOf(
         "Air Squat" to "hw_2849",
-        "Alternating Superman" to "hw_2941",
+        "Alternating Superman" to "hw_2895",
         "Calf Raise" to "hw_17",
         "Cat Cow Stretch" to "hw_2896",
         "Child's Pose Back Stretch" to "hw_2947",

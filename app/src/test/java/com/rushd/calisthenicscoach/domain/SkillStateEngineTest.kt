@@ -39,4 +39,20 @@ class SkillStateEngineTest {
         assertEquals("hs_pike", states.first { it.skillId == "handstand" }.currentNodeId)
         assertEquals("lsit_hollow", states.first { it.skillId == "l_sit" }.currentNodeId)
     }
+    @Test
+    fun deadBugAssessmentSeedsCoreTrackWithoutRequiringHollowHold() {
+        val profile = UserProfile()
+        val results = listOf(
+            AssessmentResultEntity(
+                metricId = "core_control_reps",
+                value = 10.0,
+                unit = "reps_per_side",
+                goalContext = "GENERAL"
+            )
+        )
+
+        val states = SkillStateEngine.initialStates(profile, results)
+        assertEquals("core_hollow_hold", states.first { it.skillId == "core_hollow" }.currentNodeId)
+    }
+
 }

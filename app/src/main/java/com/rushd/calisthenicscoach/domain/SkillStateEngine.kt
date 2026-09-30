@@ -32,10 +32,13 @@ object SkillStateEngine {
             else -> "push_incline"
         }
 
+        val legacyHollow = values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()
+        val coreControl = values["core_control_reps"]
         val coreNode = when {
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 40.0 -> "core_lsit_tuck"
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 30.0 -> "core_body_saw"
-            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 15.0 -> "core_hollow_hold"
+            coreControl != null && coreControl >= 12.0 -> "core_body_saw"
+            coreControl != null && coreControl >= 8.0 -> "core_hollow_hold"
+            legacyHollow >= 30.0 -> "core_body_saw"
+            legacyHollow >= 15.0 -> "core_hollow_hold"
             else -> "core_dead_bug"
         }
 
@@ -46,6 +49,7 @@ object SkillStateEngine {
         }
 
         val lSitNode = when {
+            (values["core_control_reps"] ?: 0.0) >= 12.0 -> "lsit_compression"
             (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 30.0 -> "lsit_compression"
             else -> "lsit_hollow"
         }
