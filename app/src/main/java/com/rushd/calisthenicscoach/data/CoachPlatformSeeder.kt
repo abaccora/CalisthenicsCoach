@@ -53,7 +53,7 @@ class CoachPlatformSeeder(
                 val technicalName = node.exerciseName ?: node.titleEn
                 if (technicalName.lowercase() in knownNames) return@mapNotNull null
                 ExerciseEntity(
-                    id = "skill_${slug(node.id)}",
+                    id = "skill_${slug(technicalName)}",
                     technicalName = technicalName,
                     nameEn = node.titleEn,
                     nameAr = node.titleAr,
@@ -69,7 +69,7 @@ class CoachPlatformSeeder(
                     source = "CURATED_SKILL"
                 )
             }
-            .distinctBy { it.technicalName.lowercase() }
+            .distinctBy { it.id }
 
         dao.upsertExercises((fromVideoCatalog + progressionOnly).distinctBy { it.id })
     }
@@ -90,7 +90,7 @@ class CoachPlatformSeeder(
         val nodes = SkillGraphs.all.flatMap { graph ->
             graph.nodes.map { node ->
                 val catalogItem = node.exerciseName?.let { exercises[it.lowercase()] }
-                val exerciseId = catalogItem?.key ?: "skill_${slug(node.id)}"
+                val exerciseId = catalogItem?.key ?: "skill_${slug(node.exerciseName ?: node.titleEn)}"
                 ProgressionNodeEntity(
                     id = node.id,
                     skillId = graph.skillId,
