@@ -1099,17 +1099,23 @@ fun ExerciseVideoPlayer(
     autoPlay: Boolean = true
 ) {
     val context = LocalContext.current
-    val uri = remember(video.resId, context.packageName) {
-        Uri.parse("android.resource://${context.packageName}/${video.resId}")
+    val uri = remember(video.key, video.resId, video.assetPath, context.packageName) {
+        when {
+            !video.assetPath.isNullOrBlank() -> Uri.parse("asset:///${video.assetPath}")
+            video.resId != null -> Uri.parse("android.resource://${context.packageName}/${video.resId}")
+            else -> Uri.EMPTY
+        }
     }
 
-    val player = remember(video.resId) {
+    val player = remember(video.key, uri) {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE
             volume = 0f
             playWhenReady = autoPlay
-            setMediaItem(MediaItem.fromUri(uri))
-            prepare()
+            if (uri != Uri.EMPTY) {
+                setMediaItem(MediaItem.fromUri(uri))
+                prepare()
+            }
         }
     }
 
