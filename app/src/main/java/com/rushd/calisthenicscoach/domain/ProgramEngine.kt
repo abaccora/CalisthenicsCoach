@@ -225,7 +225,8 @@ object ProgramEngine {
             sets = playable.mastery.sets,
             reps = reps,
             rest = 90,
-            cue = "نفّذ الحركة بجودة كاملة. الانتقال للمستوى التالي يعتمد على تحقيق معيار الإتقان في أكثر من جلسة."
+            cue = "نفّذ الحركة بجودة كاملة. الانتقال للمستوى التالي يعتمد على تحقيق معيار الإتقان في أكثر من جلسة.",
+            measurementType = playable.mastery.measurement
         )
     }
 
@@ -346,8 +347,15 @@ object ProgramEngine {
         else -> value
     }
 
-    private fun ex(name: String, ar: String, sets: Int, reps: String, rest: Int, cue: String) =
-        Exercise(name, ar, sets, reps, rest, cue)
+    private fun ex(
+        name: String,
+        ar: String,
+        sets: Int,
+        reps: String,
+        rest: Int,
+        cue: String,
+        measurementType: MeasurementType = MeasurementType.REPS
+    ) = Exercise(name, ar, sets, reps, rest, cue, measurementType)
 
     private fun backArabic(name: String) = when (name) {
         "Regular Pull Up" -> "عقلة"
