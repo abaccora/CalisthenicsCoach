@@ -46,6 +46,9 @@ interface CoachPlatformDao {
     @Query("SELECT * FROM exercises WHERE isCoreCatalog = 1 ORDER BY movementPattern, difficulty, nameEn")
     fun observeCoreExercises(): Flow<List<ExerciseEntity>>
 
+    @Query("SELECT COUNT(*) FROM exercises WHERE isCoreCatalog = 1")
+    suspend fun countCoreExercises(): Int
+
     @Query("SELECT * FROM exercises WHERE id = :exerciseId LIMIT 1")
     suspend fun getExercise(exerciseId: String): ExerciseEntity?
 
@@ -69,11 +72,20 @@ interface CoachPlatformDao {
     @Upsert
     suspend fun upsertSkills(items: List<SkillEntity>)
 
+    @Query("SELECT COUNT(*) FROM skills")
+    suspend fun countSkills(): Int
+
     @Upsert
     suspend fun upsertProgressionNodes(items: List<ProgressionNodeEntity>)
 
     @Upsert
     suspend fun upsertProgressionEdges(items: List<ProgressionEdgeEntity>)
+
+    @Query("SELECT COUNT(*) FROM progression_nodes")
+    suspend fun countProgressionNodes(): Int
+
+    @Query("SELECT COUNT(*) FROM progression_edges")
+    suspend fun countProgressionEdges(): Int
 
     @Query("""
         SELECT * FROM progression_nodes
