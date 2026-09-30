@@ -80,6 +80,7 @@ object ExerciseVideoCatalog {
         "split squat" to "split_squat",
         "dead bug" to "dead_bug",
         "pull-up" to "regular_pull_up",
+        "passive hang" to "regular_pull_up",
         "parallel bar dip" to "chest_dip",
     )
 
