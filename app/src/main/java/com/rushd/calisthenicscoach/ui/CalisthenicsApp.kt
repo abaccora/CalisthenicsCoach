@@ -38,6 +38,7 @@ import androidx.navigation.navArgument
 import com.rushd.calisthenicscoach.data.AppDatabase
 import com.rushd.calisthenicscoach.data.WorkoutHistory
 import com.rushd.calisthenicscoach.data.SetPerformance
+import com.rushd.calisthenicscoach.data.SetLogEntity
 import com.rushd.calisthenicscoach.data.ExerciseHistoryStat
 import com.rushd.calisthenicscoach.data.ActiveWorkoutSession
 import com.rushd.calisthenicscoach.data.WorkoutSessionRepository
@@ -1155,6 +1156,7 @@ private fun WorkoutScreen(
 ) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).workoutDao() }
+    val coachDao = remember { AppDatabase.get(context).coachDao() }
     val sessionRepo = remember { WorkoutSessionRepository(context) }
     val adaptationRepo = remember { CoachAdaptationRepository(AppDatabase.get(context)) }
     val scope = rememberCoroutineScope()
@@ -1172,6 +1174,7 @@ private fun WorkoutScreen(
     var rpeInput by remember { mutableStateOf("7") }
     var showSubstitute by remember { mutableStateOf(false) }
     var showSummary by remember { mutableStateOf(false) }
+    var previousSets by remember { mutableStateOf<List<SetLogEntity>>(emptyList()) }
 
     LaunchedEffect(plan.id) {
         val saved = sessionRepo.activeSession.first()
@@ -1258,6 +1261,14 @@ private fun WorkoutScreen(
     }
 
     val exercise = currentExerciseAt(index)
+
+    LaunchedEffect(exercise.name) {
+        val logs = coachDao.getRecentSetLogsForExercise(exercise.name)
+        val latestSessionId = logs.firstOrNull()?.sessionId
+        previousSets = if (latestSessionId == null) emptyList()
+        else logs.filter { it.sessionId == latestSessionId }.sortedBy { it.setIndex }
+    }
+
     val doneSets = completedSets[index] ?: 0
     val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
     val totalSets = plan.exercises.sumOf { it.sets }
@@ -1310,8 +1321,6 @@ private fun WorkoutScreen(
                 )
             )
             sessionRepo.mergeHistory(performances.toList())
-            sessionRepo.clearSession()
-            adaptationRepo.updateSkillStatesAfterWorkout()
             showSummary = true
         }
     }
@@ -1325,7 +1334,14 @@ private fun WorkoutScreen(
                 (completedSets[i] ?: 0) >= plan.exercises[i].sets
             },
             totalExercises = plan.exercises.size,
-            onDone = onDone
+            onDone = { difficulty, painReported ->
+                scope.launch {
+                    sessionRepo.saveFeedback(difficulty, painReported)
+                    sessionRepo.clearSession()
+                    adaptationRepo.updateSkillStatesAfterWorkout()
+                    onDone()
+                }
+            }
         )
         return
     }
@@ -1539,6 +1555,43 @@ private fun WorkoutScreen(
                 }
             }
 
+            if (previousSets.isNotEmpty()) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+                    ) {
+                        Column(
+                            Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "آخر أداء مسجل",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            previousSets.take(exercise.sets).forEach { previous ->
+                                Row {
+                                    Text("المجموعة ${previous.setIndex + 1}")
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        when {
+                                            previous.holdSeconds != null ->
+                                                "${previous.holdSeconds} ث · RPE ${previous.rpe ?: "—"}"
+                                            previous.leftReps != null ->
+                                                "${previous.leftReps}/جهة · RPE ${previous.rpe ?: "—"}"
+                                            else ->
+                                                "${previous.reps ?: 0} تكرار · RPE ${previous.rpe ?: "—"}"
+                                        },
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
@@ -1647,19 +1700,22 @@ private fun WorkoutSummaryScreen(
     performances: List<SetPerformance>,
     completedExercises: Int,
     totalExercises: Int,
-    onDone: () -> Unit
+    onDone: (String?, Boolean) -> Unit
 ) {
     val totalReps = performances.sumOf { it.reps }
     val totalHoldSeconds = performances.sumOf { it.holdSeconds ?: 0 }
     val avgRpe = if (performances.isEmpty()) 0.0 else performances.map { it.rpe }.average()
+    var difficulty by remember { mutableStateOf<String?>(null) }
+    var painReported by remember { mutableStateOf(false) }
 
     Scaffold(
         bottomBar = {
             Button(
-                onClick = onDone,
+                onClick = { onDone(difficulty, painReported) },
+                enabled = difficulty != null,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp)
             ) {
-                Text("العودة إلى اليوم", fontWeight = FontWeight.Bold)
+                Text("حفظ وإنهاء", fontWeight = FontWeight.Bold)
             }
         }
     ) { padding ->
@@ -1700,6 +1756,53 @@ private fun WorkoutSummaryScreen(
                         Text("ملخص الأداء", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Text("$completedExercises من $totalExercises تمارين مكتملة")
                         Text("متوسط الجهد RPE ${String.format("%.1f", avgRpe)}")
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    "كيف كانت الجلسة؟",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("سهلة", "مناسبة", "صعبة جدًا").forEach { option ->
+                        FilterChip(
+                            selected = difficulty == option,
+                            onClick = { difficulty = option },
+                            label = { Text(option) }
+                        )
+                    }
+                }
+            }
+
+            item {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { painReported = !painReported },
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (painReported)
+                        MaterialTheme.colorScheme.errorContainer
+                    else MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = painReported,
+                            onCheckedChange = { painReported = it }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("ظهر ألم أو انزعاج أثناء الجلسة", fontWeight = FontWeight.Bold)
+                            Text(
+                                "سنأخذ ذلك بالحسبان عند ضبط الحركة التالية.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
