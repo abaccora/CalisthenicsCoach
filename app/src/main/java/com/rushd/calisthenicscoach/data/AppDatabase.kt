@@ -35,7 +35,9 @@ abstract class AppDatabase : RoomDatabase() {
                         startedAt INTEGER NOT NULL,
                         endedAt INTEGER,
                         status TEXT NOT NULL,
-                        currentExerciseIndex INTEGER NOT NULL
+                        currentExerciseIndex INTEGER NOT NULL,
+                        perceivedDifficulty TEXT,
+                        painReported INTEGER NOT NULL DEFAULT 0
                     )
                 """.trimIndent())
 
