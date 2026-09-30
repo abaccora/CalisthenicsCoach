@@ -54,12 +54,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: calisthenics-videos-v1
+          key: calisthenics-videos-mobile-v2
           save-always: true
 
-      - name: Download exercise video library
+      - name: Prepare exercise video library
         if: steps.video-cache.outputs.cache-hit != 'true'
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install --disable-pip-version-check gdown==5.2.0
           python scripts/download_videos.py
 
@@ -120,11 +122,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/res/raw
-          key: calisthenics-videos-v1
+          key: calisthenics-videos-mobile-v2
 
-      - name: Download exercise video library
+      - name: Prepare exercise video library
         if: steps.integration-video-cache.outputs.cache-hit != 'true'
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install --disable-pip-version-check gdown==5.2.0
           python scripts/download_videos.py
 
