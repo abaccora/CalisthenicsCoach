@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 data class SetPerformance(
+    val exerciseIndex: Int,
     val exerciseName: String,
     val setIndex: Int,
     val reps: Int,
@@ -55,6 +56,7 @@ class WorkoutSessionRepository(context: Context) {
                     .filter { it.completed }
                     .map {
                         SetPerformance(
+                            exerciseIndex = it.exerciseIndex,
                             exerciseName = it.exerciseName,
                             setIndex = it.setIndex,
                             reps = it.reps ?: 0,
@@ -104,7 +106,7 @@ class WorkoutSessionRepository(context: Context) {
         val logs = session.setPerformances.map { item ->
             SetLogEntity(
                 sessionId = id,
-                exerciseIndex = inferExerciseIndex(session, item.exerciseName),
+                exerciseIndex = item.exerciseIndex,
                 exerciseName = item.exerciseName,
                 setIndex = item.setIndex,
                 reps = item.reps,
@@ -144,20 +146,4 @@ class WorkoutSessionRepository(context: Context) {
     private fun sessionId(session: ActiveWorkoutSession): String =
         "${session.planId}_${session.startedAt}"
 
-    private fun inferExerciseIndex(
-        session: ActiveWorkoutSession,
-        exerciseName: String
-    ): Int {
-        val replacementIndex = session.substitutions.entries
-            .firstOrNull { it.value == exerciseName }
-            ?.key
-        if (replacementIndex != null) return replacementIndex
-
-        val completedCandidates = session.completedSets.keys.sorted()
-        return completedCandidates.firstOrNull { index ->
-            session.setPerformances.any {
-                it.exerciseName == exerciseName && it.setIndex < (session.completedSets[index] ?: 0)
-            }
-        } ?: session.currentExerciseIndex
-    }
 }
