@@ -188,6 +188,9 @@ class CoachPlatformSeeder(
             ids.joinToString(prefix = """{"nodes":[""", postfix = """]}""", separator = """,""") { it }
         }
 
-    private fun slug(value: String): String =
-        value.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')
+    private fun fallbackExerciseId(technicalName: String): String =
+        "skill_" + technicalName
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), "_")
+            .trim('_')
 }
