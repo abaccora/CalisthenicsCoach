@@ -193,6 +193,7 @@ private fun MainExperience(profile: UserProfile) {
     val db = remember { AppDatabase.get(context) }
     val sessionRepo = remember { WorkoutSessionRepository(context) }
     val history by sessionRepo.history.collectAsStateWithLifecycle(initialValue = emptyList())
+    val activeSession by sessionRepo.activeSession.collectAsStateWithLifecycle(initialValue = null)
     val skillStates by db.coachDao().observeSkillStates().collectAsStateWithLifecycle(initialValue = emptyList())
     val effortHistory = remember(history) { history.associate { item -> item.exerciseName to item.avgRpe } }
     val skillStateMap = remember(skillStates) { skillStates.associate { item -> item.skillId to item.currentNodeId } }
@@ -242,13 +243,20 @@ private fun MainExperience(profile: UserProfile) {
                     profile = profile,
                     effortHistory = effortHistory,
                     skillStates = skillStateMap,
+                    activeSession = activeSession,
                     onStart = {
-                        val firstPlan = blueprint.weeklyDays.firstOrNull { it.planId != null }?.planId
-                            ?: blueprint.plans.first().id
-                        nav.navigate("readiness/$firstPlan")
+                        val savedSession = activeSession
+                        if (savedSession != null) {
+                            nav.navigate("workout/${savedSession.planId}") { launchSingleTop = true }
+                        } else {
+                            val firstPlan = blueprint.weeklyDays.firstOrNull { it.planId != null }?.planId
+                                ?: blueprint.plans.first().id
+                            nav.navigate("readiness/$firstPlan")
+                        }
                     },
                     onPlan = { nav.navigate(Tab.Plan.route) },
                     onLibrary = { nav.navigate(Tab.Library.route) },
+                    onProgress = { nav.navigate(Tab.Progress.route) },
                     onProfile = { nav.navigate("profile") }
                 )
             }
@@ -312,9 +320,11 @@ private fun TodayScreen(
     profile: UserProfile,
     effortHistory: Map<String, Double>,
     skillStates: Map<String, String>,
+    activeSession: ActiveWorkoutSession?,
     onStart: () -> Unit,
     onPlan: () -> Unit,
     onLibrary: () -> Unit,
+    onProgress: () -> Unit,
     onProfile: () -> Unit
 ) {
     val blueprint = remember(profile, effortHistory, skillStates) {
@@ -339,7 +349,7 @@ private fun TodayScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "تمرينك اليوم جاهز. ابدأ من حيث توقفت.",
+                        if (activeSession != null) "لديك جلسة قيد التنفيذ" else "مسارك اليوم واضح وجاهز",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -360,12 +370,21 @@ private fun TodayScreen(
 
         item {
             HeroWorkoutCard(
-                title = nextSession?.title ?: "جلسة اليوم",
-                subtitle = nextSession?.subtitle ?: blueprint.phaseTitle,
+                title = if (activeSession != null) "استئناف جلسة التدريب" else (nextSession?.title ?: "جلسة اليوم"),
+                subtitle = if (activeSession != null) "سنفتح الجلسة عند آخر تمرين ومجموعة محفوظة" else (nextSession?.subtitle ?: blueprint.phaseTitle),
                 minutes = profile.sessionMinutes,
                 sessionCount = blueprint.weeklyDays.count { it.planId != null },
                 level = profile.experience,
+                ctaLabel = if (activeSession != null) "استئناف الجلسة" else "ابدأ الجلسة",
                 onStart = onStart
+            )
+        }
+
+        item {
+            TrainingJourney(
+                hasActiveSession = activeSession != null,
+                onPlan = onPlan,
+                onProgress = onProgress
             )
         }
 
@@ -458,6 +477,7 @@ private fun HeroWorkoutCard(
     minutes: Int,
     sessionCount: Int,
     level: String,
+    ctaLabel: String,
     onStart: () -> Unit
 ) {
     val gradient = Brush.linearGradient(
@@ -525,7 +545,100 @@ private fun HeroWorkoutCard(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("ابدأ الجلسة", fontWeight = FontWeight.Bold)
+                Text(ctaLabel, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrainingJourney(
+    hasActiveSession: Boolean,
+    onPlan: () -> Unit,
+    onProgress: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                "كيف تسير الخطة؟",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black
+            )
+            Text(
+                "مسار واحد واضح من قرار اليوم إلى قياس التقدم.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            val steps = listOf(
+                Triple(Icons.Default.Today, "اليوم", if (hasActiveSession) "جلسة محفوظة" else "حدد جاهزيتك"),
+                Triple(Icons.Default.CalendarMonth, "الخطة", "اعرف ما القادم"),
+                Triple(Icons.Default.FitnessCenter, "الجلسة", "نفذ وسجّل الأداء"),
+                Triple(Icons.Default.TrendingUp, "التقدم", "راجع القوة والمهارات")
+            )
+
+            steps.forEachIndexed { index, (icon, title, subtitle) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            when (index) {
+                                1 -> onPlan()
+                                3 -> onProgress()
+                            }
+                        }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier.size(42.dp),
+                        shape = CircleShape,
+                        color = if (index == 0)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(title, fontWeight = FontWeight.Bold)
+                        Text(
+                            subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (index == 1 || index == 3) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = null)
+                    } else if (index == 0 && hasActiveSession) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text("مستمر") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        )
+                    }
+                }
+                if (index < steps.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 54.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                }
             }
         }
     }
