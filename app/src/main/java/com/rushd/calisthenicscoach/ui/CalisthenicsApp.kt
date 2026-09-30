@@ -1077,7 +1077,7 @@ private fun ProgressScreen() {
                             )
                             Text(
                                 if (next != null)
-                                    "الخطوة التالية: ${next.titleAr} · معيار الانتقال ${next.mastery.sets} مجموعات × ${next.mastery.target}"
+                                    "الخطوة التالية: ${next.titleAr} · معيار الانتقال ${next.masteryRule.minSets} مجموعات × ${next.masteryRule.targetValue}"
                                 else
                                     "أنت في أعلى مستوى معرف حاليًا لهذا المسار.",
                                 style = MaterialTheme.typography.bodyMedium,
