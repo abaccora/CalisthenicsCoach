@@ -1099,17 +1099,23 @@ fun ExerciseVideoPlayer(
     autoPlay: Boolean = true
 ) {
     val context = LocalContext.current
-    val uri = remember(video.resId, context.packageName) {
-        Uri.parse("android.resource://${context.packageName}/${video.resId}")
+    val uri = remember(video.key, video.resId, video.assetPath, context.packageName) {
+        when {
+            !video.assetPath.isNullOrBlank() -> Uri.parse("asset:///${video.assetPath}")
+            video.resId != null -> Uri.parse("android.resource://${context.packageName}/${video.resId}")
+            else -> Uri.EMPTY
+        }
     }
 
-    val player = remember(video.resId) {
+    val player = remember(video.key, uri) {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE
             volume = 0f
             playWhenReady = autoPlay
-            setMediaItem(MediaItem.fromUri(uri))
-            prepare()
+            if (uri != Uri.EMPTY) {
+                setMediaItem(MediaItem.fromUri(uri))
+                prepare()
+            }
         }
     }
 
@@ -1336,6 +1342,7 @@ private fun WorkoutScreen(
 
     var rest by remember { mutableIntStateOf(0) }
     var restOwner by remember { mutableIntStateOf(-1) }
+    var getReadySeconds by remember { mutableIntStateOf(3) }
     var repsInput by remember { mutableStateOf("8") }
     var rpeInput by remember { mutableStateOf("7") }
     var showSubstitute by remember { mutableStateOf(false) }
@@ -1400,6 +1407,14 @@ private fun WorkoutScreen(
         }
     }
 
+    LaunchedEffect(index) {
+        getReadySeconds = 3
+        while (getReadySeconds > 0) {
+            delay(1000)
+            getReadySeconds -= 1
+        }
+    }
+
     LaunchedEffect(rest) {
         if (rest > 0) {
             delay(1000)
@@ -1444,6 +1459,9 @@ private fun WorkoutScreen(
         (completedSets[i] ?: 0) >= plan.exercises[i].sets
     }
     val durationSec = ((System.currentTimeMillis() - startedAt) / 1000L).toInt().coerceAtLeast(0)
+    val workoutVideoHeight = (
+        androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.28f
+    ).coerceIn(150f, 250f).dp
 
     fun recordSet() {
         if (doneSets >= exercise.sets) return
@@ -1538,60 +1556,114 @@ private fun WorkoutScreen(
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
+            Surface(
+                tonalElevation = 10.dp,
+                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
                 Column(
-                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (rest > 0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Timer, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("راحة $rest ث", fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { rest = 0 }) { Text(stringResource(R.string.workout_skip_rest)) }
-                            TextButton(onClick = { rest = (rest + 30).coerceAtMost(300) }) { Text("+30") }
-                        }
-                    }
-
-                    if (!allCompleted && doneSets < exercise.sets) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            CompactNumberField(
-                                label = when (exercise.measurementType) {
-                                    MeasurementType.HOLD_SECONDS -> stringResource(R.string.workout_hold_seconds)
-                                    MeasurementType.LEFT_RIGHT_REPS,
-                                    MeasurementType.UNILATERAL_REPS -> stringResource(R.string.workout_per_side)
-                                    else -> stringResource(R.string.workout_reps)
-                                },
-                                value = repsInput,
-                                onValueChange = { repsInput = it },
-                                modifier = Modifier.weight(1f),
-                                maxDigits = 3
-                            )
-                            CompactNumberField(
-                                label = stringResource(R.string.workout_rpe),
-                                value = rpeInput,
-                                onValueChange = { rpeInput = it },
-                                modifier = Modifier.weight(1f),
-                                maxDigits = 2
-                            )
-                        }
-                    }
-
                     when {
+                        rest > 0 -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        "وقت الراحة",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "%02d:%02d".format(rest / 60, rest % 60),
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                                Spacer(Modifier.weight(1f))
+                                FilledTonalButton(
+                                    onClick = { rest = (rest + 15).coerceAtMost(300) }
+                                ) { Text("+15") }
+                                Spacer(Modifier.width(6.dp))
+                                FilledTonalButton(
+                                    onClick = { rest = (rest + 30).coerceAtMost(300) }
+                                ) { Text("+30") }
+                            }
+
+                            val nextDuringRest = if ((completedSets[index] ?: 0) >= exercise.sets) {
+                                nextIncomplete(index)
+                            } else {
+                                index
+                            }
+                            if (nextDuringRest != null) {
+                                Text(
+                                    if (nextDuringRest == index)
+                                        "بعد الراحة · المجموعة ${(completedSets[index] ?: 0) + 1} من ${exercise.sets}"
+                                    else
+                                        "التالي · ${currentExerciseAt(nextDuringRest).ArabicName}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = { rest = 0 },
+                                modifier = Modifier.fillMaxWidth().height(50.dp)
+                            ) {
+                                Icon(Icons.Default.SkipNext, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("تجاوز الراحة")
+                            }
+                        }
+
+                        getReadySeconds > 0 -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(52.dp),
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            "$getReadySeconds",
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            fontWeight = FontWeight.Black
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text("استعد", fontWeight = FontWeight.Black)
+                                    Text(
+                                        "${exercise.ArabicName} · المجموعة ${doneSets + 1} من ${exercise.sets}",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                TextButton(onClick = { getReadySeconds = 0 }) {
+                                    Text("ابدأ الآن")
+                                }
+                            }
+                        }
+
                         allCompleted -> {
                             Button(
                                 onClick = { finishSession() },
-                                modifier = Modifier.fillMaxWidth().height(54.dp)
+                                modifier = Modifier.fillMaxWidth().height(56.dp)
                             ) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.workout_finish), fontWeight = FontWeight.Bold)
                             }
                         }
+
                         doneSets >= exercise.sets -> {
                             val next = nextIncomplete(index)
                             Button(
@@ -1606,7 +1678,7 @@ private fun WorkoutScreen(
                                     }
                                 },
                                 enabled = next != null,
-                                modifier = Modifier.fillMaxWidth().height(54.dp)
+                                modifier = Modifier.fillMaxWidth().height(56.dp)
                             ) {
                                 Text(
                                     if (next != null) "التمرين التالي · ${currentExerciseAt(next).ArabicName}"
@@ -1617,18 +1689,39 @@ private fun WorkoutScreen(
                                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                             }
                         }
+
                         else -> {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                CompactNumberField(
+                                    label = when (exercise.measurementType) {
+                                        MeasurementType.HOLD_SECONDS -> stringResource(R.string.workout_hold_seconds)
+                                        MeasurementType.LEFT_RIGHT_REPS,
+                                        MeasurementType.UNILATERAL_REPS -> stringResource(R.string.workout_per_side)
+                                        else -> stringResource(R.string.workout_reps)
+                                    },
+                                    value = repsInput,
+                                    onValueChange = { repsInput = it },
+                                    modifier = Modifier.weight(1f),
+                                    maxDigits = 3
+                                )
+                                CompactNumberField(
+                                    label = stringResource(R.string.workout_rpe),
+                                    value = rpeInput,
+                                    onValueChange = { rpeInput = it },
+                                    modifier = Modifier.weight(1f),
+                                    maxDigits = 2
+                                )
+                            }
+
                             Button(
                                 onClick = { recordSet() },
-                                enabled = rest == 0,
-                                modifier = Modifier.fillMaxWidth().height(54.dp)
+                                modifier = Modifier.fillMaxWidth().height(56.dp)
                             ) {
                                 Icon(Icons.Default.Check, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    if (rest > 0) "استراحة · $rest ث"
-                                    else "تسجيل المجموعة ${doneSets + 1} من ${exercise.sets}",
-                                    fontWeight = FontWeight.Bold
+                                    "تمت المجموعة ${doneSets + 1} من ${exercise.sets}",
+                                    fontWeight = FontWeight.Black
                                 )
                             }
                         }
@@ -1708,7 +1801,7 @@ private fun WorkoutScreen(
                 if (video != null) {
                     ExerciseVideoPlayer(
                         video = video,
-                        modifier = Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(24.dp)),
+                        modifier = Modifier.fillMaxWidth().height(workoutVideoHeight).clip(RoundedCornerShape(26.dp)),
                         showControls = false,
                         autoPlay = true
                     )
