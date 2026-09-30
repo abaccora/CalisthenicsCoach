@@ -298,9 +298,14 @@ private fun PlanFact(label: String, value: String) {
 }
 
 private fun assessmentInstruction(type: MeasurementType): String = when (type) {
-    MeasurementType.REPS -> "نفّذ أكبر عدد من التكرارات النظيفة مع بقاء التقنية سليمة."
-    MeasurementType.HOLD_SECONDS -> "اثبت في الوضعية الصحيحة وسجل المدة بالثواني."
-    MeasurementType.UNILATERAL_REPS -> "نفّذ التكرارات لكل جهة وسجل عدد التكرارات للجهة الأضعف."
+    MeasurementType.REPS,
+    MeasurementType.QUALITY_REPS ->
+        "نفّذ أكبر عدد من التكرارات النظيفة مع بقاء التقنية سليمة."
+    MeasurementType.HOLD_SECONDS ->
+        "اثبت في الوضعية الصحيحة وسجل المدة بالثواني."
+    MeasurementType.UNILATERAL_REPS,
+    MeasurementType.LEFT_RIGHT_REPS ->
+        "نفّذ التكرارات لكل جهة وسجل عدد التكرارات للجهة الأضعف."
 }
 
 private fun assessmentUnitLabel(unit: String): String = when (unit) {
