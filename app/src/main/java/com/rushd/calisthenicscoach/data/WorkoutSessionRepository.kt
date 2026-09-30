@@ -42,7 +42,7 @@ class WorkoutSessionRepository private constructor(
 ) {
     constructor(context: Context) : this(AppDatabase.get(context).coachDao())
 
-    internal constructor(db: AppDatabase) : this(db.coachDao())
+    constructor(db: AppDatabase) : this(db.coachDao())
 
     val activeSession: Flow<ActiveWorkoutSession?> = dao.observeActiveSession().map { session ->
         session?.let { entity ->
