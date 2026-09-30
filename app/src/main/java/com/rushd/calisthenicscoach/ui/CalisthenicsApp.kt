@@ -1208,6 +1208,7 @@ private fun WorkoutScreen(plan: WorkoutPlan, onDone: () -> Unit) {
         performances.removeAll { it.exerciseName == exercise.name && it.setIndex == doneSets }
         performances.add(
             SetPerformance(
+                exerciseIndex = index,
                 exerciseName = exercise.name,
                 setIndex = doneSets,
                 reps = reps,
