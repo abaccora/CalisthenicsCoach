@@ -79,4 +79,16 @@ interface CoachDao {
 
     @Query("SELECT * FROM skill_states")
     fun observeSkillStates(): Flow<List<SkillStateEntity>>
+
+    @Query("""
+        SELECT s.* FROM set_logs s
+        INNER JOIN workout_sessions w ON w.id = s.sessionId
+        WHERE w.status = 'COMPLETED' AND s.exerciseName = :exerciseName
+        ORDER BY s.loggedAt DESC
+        LIMIT :limit
+    """)
+    suspend fun getRecentSetLogsForExercise(
+        exerciseName: String,
+        limit: Int = 60
+    ): List<SetLogEntity>
 }
