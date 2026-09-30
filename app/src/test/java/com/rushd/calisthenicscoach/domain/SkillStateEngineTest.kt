@@ -32,7 +32,10 @@ class SkillStateEngineTest {
         val profile = UserProfile()
         val states = SkillStateEngine.initialStates(profile, emptyList())
 
+        assertEquals(10, states.size)
         assertEquals("pull_dead_hang", states.first { it.skillId == "pull_up" }.currentNodeId)
+        assertEquals("push_incline", states.first { it.skillId == "push_up" }.currentNodeId)
+        assertEquals("core_dead_bug", states.first { it.skillId == "core_hollow" }.currentNodeId)
         assertEquals("hs_pike", states.first { it.skillId == "handstand" }.currentNodeId)
         assertEquals("lsit_hollow", states.first { it.skillId == "l_sit" }.currentNodeId)
     }

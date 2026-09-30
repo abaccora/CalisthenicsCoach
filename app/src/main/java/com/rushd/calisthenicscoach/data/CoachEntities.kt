@@ -9,6 +9,8 @@ import androidx.room.PrimaryKey
 data class WorkoutSessionEntity(
     @PrimaryKey val id: String,
     val planId: String,
+    val workoutId: String? = null,
+    val readinessCheckId: String? = null,
     val startedAt: Long,
     val endedAt: Long? = null,
     val status: String = "ACTIVE",
@@ -57,6 +59,7 @@ data class SetLogEntity(
     val sessionId: String,
     val exerciseIndex: Int,
     val exerciseName: String,
+    val exerciseId: String? = null,
     val setIndex: Int,
     val reps: Int? = null,
     val holdSeconds: Int? = null,
@@ -69,12 +72,15 @@ data class SetLogEntity(
     val rpe: Int? = null,
     val rir: Int? = null,
     val completed: Boolean = true,
+    val failed: Boolean = false,
     val loggedAt: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "assessment_results")
 data class AssessmentResultEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val assessmentId: String? = null,
+    val exerciseId: String? = null,
     val metricId: String,
     val value: Double,
     val unit: String,
@@ -85,6 +91,7 @@ data class AssessmentResultEntity(
 @Entity(tableName = "skill_states")
 data class SkillStateEntity(
     @PrimaryKey val skillId: String,
+    val athleteId: String = "local",
     val currentNodeId: String,
     val masteryScore: Double = 0.0,
     val successfulSessions: Int = 0,

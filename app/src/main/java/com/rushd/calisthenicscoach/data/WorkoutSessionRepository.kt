@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.map
 data class SetPerformance(
     val exerciseIndex: Int,
     val exerciseName: String,
+    val exerciseId: String? = null,
     val setIndex: Int,
     val reps: Int,
     val rpe: Int,
@@ -61,6 +62,7 @@ class WorkoutSessionRepository private constructor(
                         SetPerformance(
                             exerciseIndex = it.exerciseIndex,
                             exerciseName = it.exerciseName,
+                            exerciseId = it.exerciseId,
                             setIndex = it.setIndex,
                             reps = it.reps ?: 0,
                             rpe = it.rpe ?: 7,
@@ -111,6 +113,7 @@ class WorkoutSessionRepository private constructor(
                 sessionId = id,
                 exerciseIndex = item.exerciseIndex,
                 exerciseName = item.exerciseName,
+                exerciseId = item.exerciseId,
                 setIndex = item.setIndex,
                 reps = item.reps,
                 holdSeconds = item.holdSeconds,

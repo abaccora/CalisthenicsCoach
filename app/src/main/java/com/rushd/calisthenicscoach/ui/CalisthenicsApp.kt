@@ -49,6 +49,7 @@ import com.rushd.calisthenicscoach.data.OnboardingDraft
 import com.rushd.calisthenicscoach.domain.SkillStateEngine
 import com.rushd.calisthenicscoach.data.CoachRepository
 import com.rushd.calisthenicscoach.data.CoachAdaptationRepository
+import com.rushd.calisthenicscoach.data.CoachPlatformSeeder
 import com.rushd.calisthenicscoach.domain.ExerciseVideo
 import com.rushd.calisthenicscoach.domain.ArabicTerminology
 import com.rushd.calisthenicscoach.domain.ExerciseVideoCatalog
@@ -131,12 +132,18 @@ fun CalisthenicsApp() {
 @Composable
 private fun CoachSetupGate(profile: UserProfile) {
     val context = LocalContext.current
-    val coachRepository = remember { CoachRepository(AppDatabase.get(context)) }
+    val database = remember { AppDatabase.get(context) }
+    val coachRepository = remember { CoachRepository(database) }
+    val platformSeeder = remember { CoachPlatformSeeder(database.coachPlatformDao()) }
     val scope = rememberCoroutineScope()
 
     var loaded by remember { mutableStateOf(false) }
     var assessments by remember { mutableStateOf(emptyList<com.rushd.calisthenicscoach.data.AssessmentResultEntity>()) }
     var showGeneratedPlan by remember { mutableStateOf(false) }
+
+    LaunchedEffect(platformSeeder) {
+        platformSeeder.seedFoundation()
+    }
 
     LaunchedEffect(coachRepository) {
         assessments = coachRepository.assessments.first()
@@ -1420,16 +1427,17 @@ private fun WorkoutScreen(
     }
 
     val exercise = currentExerciseAt(index)
+    val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
+    val exerciseId = video?.key
 
-    LaunchedEffect(exercise.name) {
-        val logs = coachDao.getRecentSetLogsForExercise(exercise.name)
+    LaunchedEffect(exerciseId, exercise.name) {
+        val logs = coachDao.getRecentSetLogsForExercise(exerciseId, exercise.name)
         val latestSessionId = logs.firstOrNull()?.sessionId
         previousSets = if (latestSessionId == null) emptyList()
         else logs.filter { it.sessionId == latestSessionId }.sortedBy { it.setIndex }
     }
 
     val doneSets = completedSets[index] ?: 0
-    val video = remember(exercise.name) { ExerciseVideoCatalog.forExercise(exercise.name) }
     val totalSets = plan.exercises.sumOf { it.sets }
     val finishedSets = completedSets.values.sum()
     val allCompleted = plan.exercises.indices.all { i ->
@@ -1447,6 +1455,7 @@ private fun WorkoutScreen(
             SetPerformance(
                 exerciseIndex = index,
                 exerciseName = exercise.name,
+                exerciseId = exerciseId,
                 setIndex = doneSets,
                 reps = if (exercise.measurementType == MeasurementType.REPS) entered else 0,
                 rpe = rpe,
