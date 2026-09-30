@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.rushd.calisthenicscoach.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
@@ -1408,7 +1410,7 @@ private fun WorkoutScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("راحة $rest ث", fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { rest = 0 }) { Text("تخطي") }
+                            TextButton(onClick = { rest = 0 }) { Text(stringResource(R.string.workout_skip_rest)) }
                             TextButton(onClick = { rest = (rest + 30).coerceAtMost(300) }) { Text("+30") }
                         }
                     }
@@ -1417,10 +1419,10 @@ private fun WorkoutScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             CompactNumberField(
                                 label = when (exercise.measurementType) {
-                                    MeasurementType.HOLD_SECONDS -> "الثبات/ث"
+                                    MeasurementType.HOLD_SECONDS -> stringResource(R.string.workout_hold_seconds)
                                     MeasurementType.LEFT_RIGHT_REPS,
-                                    MeasurementType.UNILATERAL_REPS -> "لكل جهة"
-                                    else -> "التكرارات"
+                                    MeasurementType.UNILATERAL_REPS -> stringResource(R.string.workout_per_side)
+                                    else -> stringResource(R.string.workout_reps)
                                 },
                                 value = repsInput,
                                 onValueChange = { repsInput = it },
@@ -1428,7 +1430,7 @@ private fun WorkoutScreen(
                                 maxDigits = 3
                             )
                             CompactNumberField(
-                                label = "الجهد RPE",
+                                label = stringResource(R.string.workout_rpe),
                                 value = rpeInput,
                                 onValueChange = { rpeInput = it },
                                 modifier = Modifier.weight(1f),
@@ -1445,7 +1447,7 @@ private fun WorkoutScreen(
                             ) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("إنهاء الجلسة وعرض الملخص", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.workout_finish), fontWeight = FontWeight.Bold)
                             }
                         }
                         doneSets >= exercise.sets -> {
@@ -1555,7 +1557,7 @@ private fun WorkoutScreen(
                     TextButton(onClick = { showSubstitute = true }) {
                         Icon(Icons.Default.SwapHoriz, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text("استبدال")
+                        Text(stringResource(R.string.workout_substitute))
                     }
                 }
             }
@@ -1590,7 +1592,7 @@ private fun WorkoutScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "آخر أداء مسجل",
+                                stringResource(R.string.workout_previous_performance),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
@@ -1739,7 +1741,7 @@ private fun WorkoutSummaryScreen(
                 enabled = difficulty != null,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp)
             ) {
-                Text("حفظ وإنهاء", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.summary_save_finish), fontWeight = FontWeight.Bold)
             }
         }
     ) { padding ->
@@ -1756,7 +1758,7 @@ private fun WorkoutSummaryScreen(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("اكتملت الجلسة", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+                Text(stringResource(R.string.summary_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
                 Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item {
@@ -1786,12 +1788,16 @@ private fun WorkoutSummaryScreen(
 
             item {
                 Text(
-                    "كيف كانت الجلسة؟",
+                    stringResource(R.string.summary_how_was_session),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("سهلة", "مناسبة", "صعبة جدًا").forEach { option ->
+                    listOf(
+                        stringResource(R.string.summary_easy),
+                        stringResource(R.string.summary_right),
+                        stringResource(R.string.summary_too_hard)
+                    ).forEach { option ->
                         FilterChip(
                             selected = difficulty == option,
                             onClick = { difficulty = option },
@@ -1821,7 +1827,7 @@ private fun WorkoutSummaryScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Column {
-                            Text("ظهر ألم أو انزعاج أثناء الجلسة", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.summary_pain), fontWeight = FontWeight.Bold)
                             Text(
                                 "سنأخذ ذلك بالحسبان عند ضبط الحركة التالية.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
