@@ -25,6 +25,20 @@ object SkillStateEngine {
             else -> "dip_bench"
         }
 
+        val pushNode = when {
+            (values["push_reps"] ?: profile.maxPushUps.toDouble()) >= 20.0 -> "push_deficit"
+            (values["push_reps"] ?: profile.maxPushUps.toDouble()) >= 12.0 -> "push_decline"
+            (values["push_reps"] ?: profile.maxPushUps.toDouble()) >= 6.0 -> "push_regular"
+            else -> "push_incline"
+        }
+
+        val coreNode = when {
+            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 40.0 -> "core_lsit_tuck"
+            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 30.0 -> "core_body_saw"
+            (values["hollow_hold"] ?: profile.hollowHoldSec.toDouble()) >= 15.0 -> "core_hollow_hold"
+            else -> "core_dead_bug"
+        }
+
         val handstandNode = when {
             (values["pike_reps"] ?: 0.0) >= 10.0 -> "hs_wall"
             (values["pike_reps"] ?: 0.0) >= 6.0 -> "hs_shoulder_tap"
@@ -55,6 +69,8 @@ object SkillStateEngine {
         return listOf(
             state("pull_up", pullNode),
             state("dip", dipNode),
+            state("push_up", pushNode),
+            state("core_hollow", coreNode),
             state("handstand", handstandNode),
             state("l_sit", lSitNode),
             state("muscle_up", muscleNode),
