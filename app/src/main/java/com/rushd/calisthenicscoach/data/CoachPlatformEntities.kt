@@ -41,6 +41,24 @@ data class AssessmentEntity(
 )
 
 @Entity(
+    tableName = "source_actions",
+    primaryKeys = ["source", "sourceActionId"],
+    indices = [Index("sourceActionId"), Index("hasEmbeddedVideo"), Index("importState")]
+)
+data class SourceActionEntity(
+    val source: String,
+    val sourceActionId: Int,
+    val textRevision: Int? = null,
+    val attrsRevision: Int? = null,
+    val hasArabic: Boolean = false,
+    val hasEnglish: Boolean = false,
+    val hasEmbeddedVideo: Boolean = false,
+    val mediaKey: String? = null,
+    val importState: String = "INDEXED",
+    val importedExerciseId: String? = null
+)
+
+@Entity(
     tableName = "exercises",
     indices = [
         Index(value = ["technicalName"], unique = true),
