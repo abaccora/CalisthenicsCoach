@@ -29,12 +29,12 @@ object AssessmentEngine {
                 exerciseName = "Regular Push Up"
             ),
             AssessmentMetric(
-                id = "hollow_hold",
-                titleAr = "الثبات المجوف للجذع (Hollow Hold)",
-                titleEn = "Hollow Hold",
-                unit = "seconds",
-                measurementType = MeasurementType.HOLD_SECONDS,
-                exerciseName = "Hollow Body Hold"
+                id = "core_reps",
+                titleAr = "تمرين الجذع المتعاكس لكل جهة",
+                titleEn = "Dead Bug",
+                unit = "reps_per_side",
+                measurementType = MeasurementType.LEFT_RIGHT_REPS,
+                exerciseName = "Dead Bug"
             ),
             AssessmentMetric(
                 id = "split_squat_reps",
@@ -47,14 +47,6 @@ object AssessmentEngine {
         )
 
         if ("Pull-up Bar" in profile.equipment) {
-            base += AssessmentMetric(
-                id = "hang_seconds",
-                titleAr = "مدة التعلّق بالبار",
-                titleEn = "Dead Hang",
-                unit = "seconds",
-                measurementType = MeasurementType.HOLD_SECONDS,
-                exerciseName = "Passive Hang"
-            )
             base += AssessmentMetric(
                 id = "pull_reps",
                 titleAr = "أقصى عدد من السحب على البار بتقنية سليمة",
@@ -103,10 +95,14 @@ object AssessmentEngine {
             }
         }
 
+        val playable = base.filter { metric ->
+            metric.exerciseName?.let(ExerciseVideoCatalog::forExercise) != null
+        }
+
         return AssessmentPlan(
             titleAr = "تقييم البداية",
             goal = profile.goal,
-            metrics = base
+            metrics = playable
         )
     }
 }
