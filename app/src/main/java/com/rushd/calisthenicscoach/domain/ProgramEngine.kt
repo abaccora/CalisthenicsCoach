@@ -6,7 +6,8 @@ object ProgramEngine {
 
     fun build(
         profile: UserProfile,
-        effortHistory: Map<String, Double> = emptyMap()
+        effortHistory: Map<String, Double> = emptyMap(),
+        skillStates: Map<String, String> = emptyMap()
     ): TrainingBlueprint {
         val level = level(profile)
         val recovery = recoveryProfile(profile)
@@ -16,7 +17,7 @@ object ProgramEngine {
             else -> 6
         }
 
-        val plans = buildPlans(profile, level, recovery)
+        val plans = buildPlans(profile, level, recovery, skillStates)
             .map { plan ->
                 plan.copy(
                     exercises = plan.exercises
@@ -61,7 +62,8 @@ object ProgramEngine {
     private fun buildPlans(
         profile: UserProfile,
         level: String,
-        recovery: RecoveryProfile
+        recovery: RecoveryProfile,
+        skillStates: Map<String, String>
     ): List<WorkoutPlan> {
         val foundation = WorkoutPlan(
             id = "adaptive_foundation",
@@ -100,7 +102,7 @@ object ProgramEngine {
             level = level,
             durationMin = (profile.sessionMinutes * 0.8f).roundToInt().coerceAtLeast(25),
             exercises = adapt(
-                skillExercises(profile),
+                skillExercises(profile, skillStates),
                 recovery.copy(setReduction = 0)
             )
         )
@@ -146,9 +148,14 @@ object ProgramEngine {
         )
     }
 
-    private fun skillExercises(profile: UserProfile): List<Exercise> {
+    private fun skillExercises(
+        profile: UserProfile,
+        skillStates: Map<String, String>
+    ): List<Exercise> {
         val goal = profile.goal
-        return when (goal) {
+        val progressionExercise = progressionExerciseForGoal(goal, skillStates)
+
+        val accessories = when (goal) {
             "Handstand", "Planche" -> listOf(
                 ex("Pike Push Up", "ضغط بايك", 3, "6–10", 75, "ادفع الأرض وحافظ على الكتفين نشطين"),
                 ex("Plank Shoulder Tap", "لمس الكتف من البلانك", 3, "8/جهة", 45, "قلل دوران الحوض"),
@@ -168,6 +175,58 @@ object ProgramEngine {
                 ex("Cat Cow Stretch", "إطالة القطة والبقرة", 2, "8–10", 30, "نسق الحركة مع التنفس")
             )
         }
+
+        return buildList {
+            if (progressionExercise != null) add(progressionExercise)
+            accessories
+                .filterNot { progressionExercise != null && it.name == progressionExercise.name }
+                .take(if (progressionExercise != null) 3 else 4)
+                .forEach(::add)
+        }
+    }
+
+    private fun progressionExerciseForGoal(
+        goal: String,
+        skillStates: Map<String, String>
+    ): Exercise? {
+        val skillId = when (goal) {
+            "Pull-up" -> "pull_up"
+            "Muscle-up" -> "muscle_up"
+            "Handstand" -> "handstand"
+            "Front Lever" -> "front_lever"
+            "Planche" -> "planche"
+            else -> null
+        } ?: return null
+
+        val track = SkillProgressionGraph.track(skillId) ?: return null
+        val selectedId = skillStates[skillId]
+        val selected = selectedId?.let(SkillProgressionGraph::node)
+            ?: track.nodes.minByOrNull { it.level }
+            ?: return null
+
+        val playable = generateSequence(selected) { current ->
+            SkillProgressionGraph.previous(current.id)
+        }.firstOrNull { node ->
+            node.exerciseName != null &&
+                ExerciseVideoCatalog.forExercise(node.exerciseName) != null
+        } ?: return null
+
+        val target = playable.mastery.target
+        val reps = when (playable.mastery.measurement) {
+            MeasurementType.HOLD_SECONDS -> "$target ثانية"
+            MeasurementType.LEFT_RIGHT_REPS,
+            MeasurementType.UNILATERAL_REPS -> "$target/جهة"
+            else -> "$target"
+        }
+
+        return ex(
+            name = playable.exerciseName!!,
+            ar = playable.titleAr,
+            sets = playable.mastery.sets,
+            reps = reps,
+            rest = 90,
+            cue = "نفّذ الحركة بجودة كاملة. الانتقال للمستوى التالي يعتمد على تحقيق معيار الإتقان في أكثر من جلسة."
+        )
     }
 
     private fun adaptFromHistory(exercise: Exercise, averageRpe: Double?): Exercise {
