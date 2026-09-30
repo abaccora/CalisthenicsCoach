@@ -1,21 +1,22 @@
 package com.rushd.calisthenicscoach.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import org.json.JSONArray
-import org.json.JSONObject
-
-private val Context.workoutSessionStore by preferencesDataStore(name = "workout_session_v1")
 
 data class SetPerformance(
     val exerciseName: String,
     val setIndex: Int,
     val reps: Int,
-    val rpe: Int
+    val rpe: Int,
+    val holdSeconds: Int? = null,
+    val leftReps: Int? = null,
+    val rightReps: Int? = null,
+    val assistance: String? = null,
+    val addedWeightKg: Double? = null,
+    val bandLevel: String? = null,
+    val tempo: String? = null,
+    val rir: Int? = null
 )
 
 data class ActiveWorkoutSession(
@@ -35,146 +36,128 @@ data class ExerciseHistoryStat(
     val updatedAt: Long
 )
 
-class WorkoutSessionRepository(private val context: Context) {
+class WorkoutSessionRepository(context: Context) {
 
-    private object Keys {
-        val active = stringPreferencesKey("active_session")
-        val history = stringPreferencesKey("exercise_history")
+    private val dao = AppDatabase.get(context).coachDao()
+
+    val activeSession: Flow<ActiveWorkoutSession?> = dao.observeActiveSession().map { session ->
+        session?.let { entity ->
+            val logs = dao.getSetLogs(entity.id)
+            val substitutions = dao.getSubstitutions(entity.id)
+            ActiveWorkoutSession(
+                planId = entity.planId,
+                currentExerciseIndex = entity.currentExerciseIndex,
+                completedSets = logs
+                    .filter { it.completed }
+                    .groupingBy { it.exerciseIndex }
+                    .eachCount(),
+                setPerformances = logs
+                    .filter { it.completed }
+                    .map {
+                        SetPerformance(
+                            exerciseName = it.exerciseName,
+                            setIndex = it.setIndex,
+                            reps = it.reps ?: 0,
+                            rpe = it.rpe ?: 7,
+                            holdSeconds = it.holdSeconds,
+                            leftReps = it.leftReps,
+                            rightReps = it.rightReps,
+                            assistance = it.assistance,
+                            addedWeightKg = it.addedWeightKg,
+                            bandLevel = it.bandLevel,
+                            tempo = it.tempo,
+                            rir = it.rir
+                        )
+                    },
+                startedAt = entity.startedAt,
+                substitutions = substitutions.associate {
+                    it.exerciseIndex to it.replacementName
+                }
+            )
+        }
     }
 
-    val activeSession: Flow<ActiveWorkoutSession?> = context.workoutSessionStore.data.map { prefs ->
-        prefs[Keys.active]?.let(::decodeSession)
-    }
-
-    val history: Flow<List<ExerciseHistoryStat>> = context.workoutSessionStore.data.map { prefs ->
-        prefs[Keys.history]?.let(::decodeHistory) ?: emptyList()
+    val history: Flow<List<ExerciseHistoryStat>> = dao.observeExerciseHistory().map { rows ->
+        rows.map {
+            ExerciseHistoryStat(
+                exerciseName = it.exerciseName,
+                bestReps = it.bestReps,
+                avgRpe = it.avgRpe ?: 0.0,
+                totalSets = it.totalSets,
+                updatedAt = System.currentTimeMillis()
+            )
+        }
     }
 
     suspend fun saveSession(session: ActiveWorkoutSession) {
-        context.workoutSessionStore.edit { prefs ->
-            prefs[Keys.active] = encodeSession(session)
+        val id = sessionId(session)
+        dao.upsertSession(
+            WorkoutSessionEntity(
+                id = id,
+                planId = session.planId,
+                startedAt = session.startedAt,
+                status = "ACTIVE",
+                currentExerciseIndex = session.currentExerciseIndex
+            )
+        )
+
+        val logs = session.setPerformances.map { item ->
+            SetLogEntity(
+                sessionId = id,
+                exerciseIndex = inferExerciseIndex(session, item.exerciseName),
+                exerciseName = item.exerciseName,
+                setIndex = item.setIndex,
+                reps = item.reps,
+                holdSeconds = item.holdSeconds,
+                leftReps = item.leftReps,
+                rightReps = item.rightReps,
+                assistance = item.assistance,
+                addedWeightKg = item.addedWeightKg,
+                bandLevel = item.bandLevel,
+                tempo = item.tempo,
+                rpe = item.rpe,
+                rir = item.rir,
+                completed = true
+            )
         }
+
+        val replacements = session.substitutions.map { (exerciseIndex, name) ->
+            WorkoutSubstitutionEntity(
+                sessionId = id,
+                exerciseIndex = exerciseIndex,
+                replacementName = name
+            )
+        }
+
+        dao.replaceSessionDetails(id, logs, replacements)
     }
 
     suspend fun clearSession() {
-        context.workoutSessionStore.edit { prefs ->
-            prefs.remove(Keys.active)
-        }
+        val active = dao.getActiveSession() ?: return
+        dao.completeSession(active.id, System.currentTimeMillis())
     }
 
     suspend fun mergeHistory(performances: List<SetPerformance>) {
-        context.workoutSessionStore.edit { prefs ->
-            val current = prefs[Keys.history]?.let(::decodeHistory).orEmpty().associateBy { it.exerciseName }.toMutableMap()
-            performances.groupBy { it.exerciseName }.forEach { (name, sets) ->
-                val previous = current[name]
-                val totalSets = (previous?.totalSets ?: 0) + sets.size
-                val previousWeighted = (previous?.avgRpe ?: 0.0) * (previous?.totalSets ?: 0)
-                val newAverage = if (totalSets > 0) {
-                    (previousWeighted + sets.sumOf { it.rpe }.toDouble()) / totalSets
-                } else 0.0
-                current[name] = ExerciseHistoryStat(
-                    exerciseName = name,
-                    bestReps = maxOf(previous?.bestReps ?: 0, sets.maxOfOrNull { it.reps } ?: 0),
-                    avgRpe = newAverage,
-                    totalSets = totalSets,
-                    updatedAt = System.currentTimeMillis()
-                )
-            }
-            prefs[Keys.history] = encodeHistory(current.values.toList())
-        }
+        // History is derived directly from completed Room set logs.
     }
 
-    private fun encodeSession(session: ActiveWorkoutSession): String {
-        val completed = JSONObject()
-        session.completedSets.forEach { (k, v) -> completed.put(k.toString(), v) }
+    private fun sessionId(session: ActiveWorkoutSession): String =
+        "${session.planId}_${session.startedAt}"
 
-        val substitutions = JSONObject()
-        session.substitutions.forEach { (k, v) -> substitutions.put(k.toString(), v) }
+    private fun inferExerciseIndex(
+        session: ActiveWorkoutSession,
+        exerciseName: String
+    ): Int {
+        val replacementIndex = session.substitutions.entries
+            .firstOrNull { it.value == exerciseName }
+            ?.key
+        if (replacementIndex != null) return replacementIndex
 
-        val performances = JSONArray()
-        session.setPerformances.forEach { item ->
-            performances.put(JSONObject().apply {
-                put("exerciseName", item.exerciseName)
-                put("setIndex", item.setIndex)
-                put("reps", item.reps)
-                put("rpe", item.rpe)
-            })
-        }
-
-        return JSONObject().apply {
-            put("planId", session.planId)
-            put("currentExerciseIndex", session.currentExerciseIndex)
-            put("completedSets", completed)
-            put("setPerformances", performances)
-            put("startedAt", session.startedAt)
-            put("substitutions", substitutions)
-        }.toString()
-    }
-
-    private fun decodeSession(raw: String): ActiveWorkoutSession? = runCatching {
-        val obj = JSONObject(raw)
-        val completedObj = obj.optJSONObject("completedSets") ?: JSONObject()
-        val completed = mutableMapOf<Int, Int>()
-        completedObj.keys().forEach { key -> completed[key.toInt()] = completedObj.getInt(key) }
-
-        val substitutionsObj = obj.optJSONObject("substitutions") ?: JSONObject()
-        val substitutions = mutableMapOf<Int, String>()
-        substitutionsObj.keys().forEach { key -> substitutions[key.toInt()] = substitutionsObj.getString(key) }
-
-        val performancesArray = obj.optJSONArray("setPerformances") ?: JSONArray()
-        val performances = buildList {
-            for (i in 0 until performancesArray.length()) {
-                val item = performancesArray.getJSONObject(i)
-                add(
-                    SetPerformance(
-                        exerciseName = item.getString("exerciseName"),
-                        setIndex = item.getInt("setIndex"),
-                        reps = item.getInt("reps"),
-                        rpe = item.getInt("rpe")
-                    )
-                )
+        val completedCandidates = session.completedSets.keys.sorted()
+        return completedCandidates.firstOrNull { index ->
+            session.setPerformances.any {
+                it.exerciseName == exerciseName && it.setIndex < (session.completedSets[index] ?: 0)
             }
-        }
-
-        ActiveWorkoutSession(
-            planId = obj.getString("planId"),
-            currentExerciseIndex = obj.optInt("currentExerciseIndex", 0),
-            completedSets = completed,
-            setPerformances = performances,
-            startedAt = obj.optLong("startedAt", System.currentTimeMillis()),
-            substitutions = substitutions
-        )
-    }.getOrNull()
-
-    private fun encodeHistory(items: List<ExerciseHistoryStat>): String {
-        val array = JSONArray()
-        items.forEach { item ->
-            array.put(JSONObject().apply {
-                put("exerciseName", item.exerciseName)
-                put("bestReps", item.bestReps)
-                put("avgRpe", item.avgRpe)
-                put("totalSets", item.totalSets)
-                put("updatedAt", item.updatedAt)
-            })
-        }
-        return array.toString()
+        } ?: session.currentExerciseIndex
     }
-
-    private fun decodeHistory(raw: String): List<ExerciseHistoryStat> = runCatching {
-        val array = JSONArray(raw)
-        buildList {
-            for (i in 0 until array.length()) {
-                val item = array.getJSONObject(i)
-                add(
-                    ExerciseHistoryStat(
-                        exerciseName = item.getString("exerciseName"),
-                        bestReps = item.optInt("bestReps", 0),
-                        avgRpe = item.optDouble("avgRpe", 0.0),
-                        totalSets = item.optInt("totalSets", 0),
-                        updatedAt = item.optLong("updatedAt", 0L)
-                    )
-                )
-            }
-        }
-    }.getOrDefault(emptyList())
 }
