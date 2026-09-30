@@ -90,6 +90,20 @@ object ProgressionEngine {
             )
         }
 
+        val recentDifficulty = lastThree.mapNotNull { it.perceivedDifficulty }
+        val hardCount = recentDifficulty.count { it == "صعبة جدًا" }
+        val easyCount = recentDifficulty.count { it == "سهلة" }
+
+        if (hardCount >= 2 && completionRate < 0.9) {
+            return CoachRecommendation(
+                decision = CoachDecision.DELOAD,
+                reasonAr = "صنفت أكثر من جلسة أخيرة بأنها صعبة جدًا ولم يكتمل الهدف بثبات؛ سنخفض الحمل مؤقتًا.",
+                currentNode = node,
+                volumeMultiplier = 0.75,
+                restAdjustmentSec = 20
+            )
+        }
+
         if (successfulSessions >= node.masteryRule.successfulSessionsRequired) {
             val next = SkillGraphs.next(node.id)
             if (next != null) {
@@ -127,7 +141,11 @@ object ProgressionEngine {
             )
         }
 
-        if (completionRate >= 0.95 && (avgRpe == null || avgRpe <= 7.0)) {
+        if (
+            completionRate >= 0.95 &&
+            (avgRpe == null || avgRpe <= 7.0) &&
+            (easyCount >= 1 || recentDifficulty.isEmpty())
+        ) {
             return CoachRecommendation(
                 decision = CoachDecision.INCREASE_VOLUME,
                 reasonAr = "أنهيت العمل المطلوب بسهولة نسبية؛ سنزيد الحمل تدريجيًا قبل الانتقال إلى نسخة أصعب.",
