@@ -56,6 +56,7 @@ import com.rushd.calisthenicscoach.domain.UserProfile
 import com.rushd.calisthenicscoach.domain.WorkoutPlan
 import com.rushd.calisthenicscoach.domain.SkillProgressionGraph
 import com.rushd.calisthenicscoach.domain.MeasurementType
+import com.rushd.calisthenicscoach.domain.DailySessionAdapter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -196,6 +197,7 @@ private fun MainExperience(profile: UserProfile) {
     val blueprint = remember(profile, effortHistory, skillStateMap) {
         ProgramEngine.build(profile, effortHistory, skillStateMap)
     }
+    var todayOverride by remember { mutableStateOf<WorkoutPlan?>(null) }
     val nav = rememberNavController()
     val tabs = listOf(Tab.Today, Tab.Plan, Tab.Library, Tab.Progress)
     val entry by nav.currentBackStackEntryAsState()
@@ -241,7 +243,7 @@ private fun MainExperience(profile: UserProfile) {
                     onStart = {
                         val firstPlan = blueprint.weeklyDays.firstOrNull { it.planId != null }?.planId
                             ?: blueprint.plans.first().id
-                        nav.navigate("workout/$firstPlan")
+                        nav.navigate("readiness/$firstPlan")
                     },
                     onPlan = { nav.navigate(Tab.Plan.route) },
                     onLibrary = { nav.navigate(Tab.Library.route) },
@@ -253,7 +255,7 @@ private fun MainExperience(profile: UserProfile) {
                     profile = profile,
                     effortHistory = effortHistory,
                     skillStates = skillStateMap,
-                    onOpenWorkout = { nav.navigate("workout/${it.id}") }
+                    onOpenWorkout = { nav.navigate("readiness/${it.id}") }
                 )
             }
             composable(Tab.Library.route) { ExerciseLibraryScreen() }
@@ -266,15 +268,37 @@ private fun MainExperience(profile: UserProfile) {
                 )
             }
             composable(
+                "readiness/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.StringType })
+            ) { backStack ->
+                val id = backStack.arguments?.getString("id")
+                val basePlan = blueprint.plans.firstOrNull { it.id == id } ?: blueprint.plans.first()
+                ReadinessScreen(
+                    profile = profile,
+                    onStart = { readiness ->
+                        todayOverride = DailySessionAdapter.adapt(basePlan, readiness)
+                        nav.navigate("workout/${basePlan.id}") {
+                            popUpTo("readiness/${basePlan.id}") { inclusive = true }
+                        }
+                    },
+                    onCancel = { nav.popBackStack() }
+                )
+            }
+
+            composable(
                 "workout/{id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType })
             ) { backStack ->
                 val id = backStack.arguments?.getString("id")
-                val plan = blueprint.plans.firstOrNull { it.id == id } ?: blueprint.plans.first()
+                val basePlan = blueprint.plans.firstOrNull { it.id == id } ?: blueprint.plans.first()
+                val plan = todayOverride?.takeIf { it.id == basePlan.id } ?: basePlan
                 WorkoutScreen(
                     plan = plan,
                     availableEquipment = profile.equipment,
-                    onDone = { nav.popBackStack() }
+                    onDone = {
+                        todayOverride = null
+                        nav.popBackStack()
+                    }
                 )
             }
         }
