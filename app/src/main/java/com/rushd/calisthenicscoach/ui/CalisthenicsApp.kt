@@ -920,7 +920,7 @@ private fun ExerciseLibraryScreen() {
 }
 
 @Composable
-private fun ExerciseVideoPlayer(
+fun ExerciseVideoPlayer(
     video: ExerciseVideo,
     modifier: Modifier = Modifier,
     showControls: Boolean = false,
