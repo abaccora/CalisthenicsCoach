@@ -12,7 +12,9 @@ data class WorkoutSessionEntity(
     val startedAt: Long,
     val endedAt: Long? = null,
     val status: String = "ACTIVE",
-    val currentExerciseIndex: Int = 0
+    val currentExerciseIndex: Int = 0,
+    val perceivedDifficulty: String? = null,
+    val painReported: Boolean = false
 )
 
 @Entity(
