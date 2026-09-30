@@ -37,9 +37,12 @@ data class ExerciseHistoryStat(
     val updatedAt: Long
 )
 
-class WorkoutSessionRepository(context: Context) {
+class WorkoutSessionRepository private constructor(
+    private val dao: CoachDao
+) {
+    constructor(context: Context) : this(AppDatabase.get(context).coachDao())
 
-    private val dao = AppDatabase.get(context).coachDao()
+    constructor(db: AppDatabase) : this(db.coachDao())
 
     val activeSession: Flow<ActiveWorkoutSession?> = dao.observeActiveSession().map { session ->
         session?.let { entity ->
