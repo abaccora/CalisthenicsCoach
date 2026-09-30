@@ -68,20 +68,29 @@ object ProgressionEngine {
 
         val lastThree = recent.take(3)
         val completionRate = lastThree.map { session ->
-            masteryCompletion(session.samples, node.masteryRule)
+            masteryCompletion(
+                samples = session.samples,
+                measurement = node.measurementType,
+                rule = node.masteryRule
+            )
         }.average()
 
         val avgRpe = lastThree
             .flatMap { it.samples }
+            .filter { it.measurement == node.measurementType }
             .mapNotNull { it.rpe }
             .takeIf { it.isNotEmpty() }
             ?.average()
 
         val successfulSessions = recent.count { session ->
-            isMasteredSession(session.samples, node.masteryRule)
+            isMasteredSession(
+                samples = session.samples,
+                measurement = node.measurementType,
+                rule = node.masteryRule
+            )
         }
 
-        if (successfulSessions >= node.masteryRule.requiredSuccessfulSessions) {
+        if (successfulSessions >= node.masteryRule.successfulSessionsRequired) {
             val next = SkillGraphs.next(node.id)
             if (next != null) {
                 return CoachRecommendation(
@@ -144,10 +153,11 @@ object ProgressionEngine {
 
     private fun masteryCompletion(
         samples: List<PerformanceSample>,
+        measurement: MeasurementType,
         rule: MasteryRule
     ): Double {
         val matching = samples
-            .filter { it.completed && compatible(it.measurement, nodeMeasurement(rule)) }
+            .filter { it.completed && it.measurement == measurement }
             .take(rule.minSets)
 
         if (matching.isEmpty()) return 0.0
@@ -161,10 +171,11 @@ object ProgressionEngine {
 
     private fun isMasteredSession(
         samples: List<PerformanceSample>,
+        measurement: MeasurementType,
         rule: MasteryRule
     ): Boolean {
         val matching = samples
-            .filter { it.completed && compatible(it.measurement, nodeMeasurement(rule)) }
+            .filter { it.completed && it.measurement == measurement }
             .take(rule.minSets)
 
         if (matching.size < rule.minSets) return false
@@ -173,14 +184,5 @@ object ProgressionEngine {
             sample.value >= rule.targetValue &&
                 (sample.rpe == null || sample.rpe <= rule.maxRpe)
         }
-    }
-
-    private fun nodeMeasurement(rule: MasteryRule): MeasurementType =
-        MeasurementType.REPS
-
-    private fun compatible(actual: MeasurementType, required: MeasurementType): Boolean {
-        if (actual == required) return true
-        return (actual == MeasurementType.UNILATERAL_REPS && required == MeasurementType.LEFT_RIGHT_REPS) ||
-            (actual == MeasurementType.LEFT_RIGHT_REPS && required == MeasurementType.UNILATERAL_REPS)
     }
 }
