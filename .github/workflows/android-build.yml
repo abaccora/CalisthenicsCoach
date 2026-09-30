@@ -15,7 +15,9 @@ on:
       - 'gradle/**'
       - '.github/workflows/android-build.yml'
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - 'beta/**'
     paths:
       - 'app/**'
       - 'build.gradle.kts'
@@ -83,12 +85,17 @@ jobs:
       - name: Run unit tests and build debug APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
-      - name: Upload debug APK
+      - name: Prepare test APK
+        if: github.event_name != 'pull_request'
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk CalisthenicsCoach-2.0.0-beta04-final.apk
+
+      - name: Upload test APK
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: CalisthenicsCoach-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: CalisthenicsCoach-2.0.0-beta04-final
+          path: CalisthenicsCoach-2.0.0-beta04-final.apk
           if-no-files-found: error
           retention-days: 14
 
