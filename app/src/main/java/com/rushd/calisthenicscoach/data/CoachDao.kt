@@ -25,6 +25,20 @@ interface CoachDao {
     @Query("UPDATE workout_sessions SET currentExerciseIndex = :index WHERE id = :sessionId")
     suspend fun updateCurrentExercise(sessionId: String, index: Int)
 
+    @Query("SELECT * FROM workout_sessions WHERE id = :sessionId LIMIT 1")
+    suspend fun getSession(sessionId: String): WorkoutSessionEntity?
+
+    @Query("""
+        UPDATE workout_sessions
+        SET perceivedDifficulty = :difficulty, painReported = :painReported
+        WHERE id = :sessionId
+    """)
+    suspend fun updateSessionFeedback(
+        sessionId: String,
+        difficulty: String?,
+        painReported: Boolean
+    )
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSetLogs(logs: List<SetLogEntity>)
 
