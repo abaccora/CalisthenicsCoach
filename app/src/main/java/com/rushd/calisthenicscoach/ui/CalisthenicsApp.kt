@@ -877,7 +877,7 @@ private fun ExerciseLibraryScreen() {
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            "${video.nameEn} · ${video.category}",
+                            exerciseCategoryAr(video.category),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
@@ -1883,7 +1883,12 @@ private fun AthleteProfileScreen(
                         color = MaterialTheme.colorScheme.surface
                     ) {
                         ListItem(
-                            headlineContent = { Text(item.exerciseName) },
+                            headlineContent = {
+                                Text(
+                                    ExerciseVideoCatalog.forExercise(item.exerciseName)?.nameAr
+                                        ?: item.exerciseName
+                                )
+                            },
                             supportingContent = {
                                 Text("أفضل تكرارات ${item.bestReps} · متوسط RPE ${String.format("%.1f", item.avgRpe)}")
                             },
@@ -1925,5 +1930,16 @@ private fun displayProfileValue(value: String): String = when (value) {
     "Handstand" -> "الوقوف على اليدين"
     "Front Lever" -> "الفرونت ليفر"
     "Planche" -> "البلانش"
+    else -> value
+}
+
+
+private fun exerciseCategoryAr(value: String): String = when (value) {
+    "Chest" -> "الصدر"
+    "Back" -> "الظهر"
+    "Legs" -> "الأرجل"
+    "Core" -> "الجذع"
+    "Cardio" -> "اللياقة"
+    "Mobility" -> "المرونة والحركة"
     else -> value
 }
