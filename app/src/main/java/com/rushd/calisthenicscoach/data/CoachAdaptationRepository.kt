@@ -39,8 +39,8 @@ class CoachAdaptationRepository(private val db: AppDatabase) {
                             .sortedBy { it.setIndex }
                             .map { log ->
                                 PerformanceSample(
-                                    measurement = node.mastery.measurement,
-                                    value = when (node.mastery.measurement) {
+                                    measurement = node.measurementType,
+                                    value = when (node.measurementType) {
                                         MeasurementType.HOLD_SECONDS -> log.holdSeconds ?: log.reps ?: 0
                                         MeasurementType.LEFT_RIGHT_REPS,
                                         MeasurementType.UNILATERAL_REPS -> minOf(
@@ -60,18 +60,18 @@ class CoachAdaptationRepository(private val db: AppDatabase) {
             val recommendation = ProgressionEngine.evaluate(node.id, sessions)
             val targetId = recommendation.targetNode?.id ?: node.id
             val successful = sessions.count { session ->
-                val samples = session.samples.take(node.mastery.sets)
-                samples.size >= node.mastery.sets &&
+                val samples = session.samples.take(node.masteryRule.minSets)
+                samples.size >= node.masteryRule.minSets &&
                     samples.all { sample ->
-                        sample.value >= node.mastery.target &&
-                            (sample.rpe == null || sample.rpe <= node.mastery.maxRpe)
+                        sample.value >= node.masteryRule.targetValue &&
+                            (sample.rpe == null || sample.rpe <= node.masteryRule.maxRpe)
                     }
             }
 
             dao.upsertSkillState(
                 state.copy(
                     currentNodeId = targetId,
-                    masteryScore = masteryScore(node.mastery.target, sessions),
+                    masteryScore = masteryScore(node.masteryRule.targetValue, sessions),
                     successfulSessions = successful,
                     updatedAt = System.currentTimeMillis()
                 )
