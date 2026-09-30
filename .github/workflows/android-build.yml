@@ -3,7 +3,9 @@ name: Android CI
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - 'beta/**'
     paths:
       - 'app/**'
       - 'build.gradle.kts'
