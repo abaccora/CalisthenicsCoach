@@ -1,3 +1,39 @@
 <resources>
     <string name="app_name">Calisthenics Coach</string>
+
+    <string name="nav_today">اليوم</string>
+    <string name="nav_plan">الخطة</string>
+    <string name="nav_library">المكتبة</string>
+    <string name="nav_progress">تقدمي</string>
+
+    <string name="assessment_title">تقييم البداية</string>
+    <string name="assessment_previous">السابق</string>
+    <string name="assessment_next">التالي</string>
+    <string name="assessment_finish">إنهاء التقييم</string>
+
+    <string name="plan_ready_title">تم إعداد برنامجك</string>
+    <string name="plan_start">ابدأ خطتي</string>
+
+    <string name="readiness_title">جهوزية اليوم</string>
+    <string name="readiness_cancel">إلغاء</string>
+    <string name="readiness_prepare">جهّز جلسة اليوم</string>
+
+    <string name="workout_rest">راحة</string>
+    <string name="workout_skip_rest">تخطي</string>
+    <string name="workout_reps">التكرارات</string>
+    <string name="workout_hold_seconds">الثبات/ث</string>
+    <string name="workout_per_side">لكل جهة</string>
+    <string name="workout_rpe">الجهد RPE</string>
+    <string name="workout_substitute">استبدال</string>
+    <string name="workout_previous_performance">آخر أداء مسجل</string>
+    <string name="workout_finish">إنهاء الجلسة وعرض الملخص</string>
+    <string name="workout_next">التمرين التالي</string>
+
+    <string name="summary_title">اكتملت الجلسة</string>
+    <string name="summary_save_finish">حفظ وإنهاء</string>
+    <string name="summary_how_was_session">كيف كانت الجلسة؟</string>
+    <string name="summary_easy">سهلة</string>
+    <string name="summary_right">مناسبة</string>
+    <string name="summary_too_hard">صعبة جدًا</string>
+    <string name="summary_pain">ظهر ألم أو انزعاج أثناء الجلسة</string>
 </resources>
