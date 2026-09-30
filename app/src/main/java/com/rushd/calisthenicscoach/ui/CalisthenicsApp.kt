@@ -1428,8 +1428,10 @@ private fun WorkoutScreen(
 
     val exercise = currentExerciseAt(index)
 
-    LaunchedEffect(exercise.name) {
-        val logs = coachDao.getRecentSetLogsForExercise(exercise.name)
+    val exerciseId = video?.key
+
+    LaunchedEffect(exerciseId, exercise.name) {
+        val logs = coachDao.getRecentSetLogsForExercise(exerciseId, exercise.name)
         val latestSessionId = logs.firstOrNull()?.sessionId
         previousSets = if (latestSessionId == null) emptyList()
         else logs.filter { it.sessionId == latestSessionId }.sortedBy { it.setIndex }
@@ -1454,6 +1456,7 @@ private fun WorkoutScreen(
             SetPerformance(
                 exerciseIndex = index,
                 exerciseName = exercise.name,
+                exerciseId = exerciseId,
                 setIndex = doneSets,
                 reps = if (exercise.measurementType == MeasurementType.REPS) entered else 0,
                 rpe = rpe,
