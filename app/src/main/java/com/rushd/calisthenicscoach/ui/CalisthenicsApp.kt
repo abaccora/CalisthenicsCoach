@@ -34,6 +34,8 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.Player
 import androidx.media3.common.MediaItem
+import androidx.media3.datasource.RawResourceDataSource
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -1102,7 +1104,7 @@ fun ExerciseVideoPlayer(
     val uri = remember(video.key, video.resId, video.assetPath, context.packageName) {
         when {
             !video.assetPath.isNullOrBlank() -> Uri.parse("asset:///${video.assetPath}")
-            video.resId != null -> Uri.parse("android.resource://${context.packageName}/${video.resId}")
+            video.resId != null -> RawResourceDataSource.buildRawResourceUri(video.resId)
             else -> Uri.EMPTY
         }
     }
@@ -1133,6 +1135,8 @@ fun ExerciseVideoPlayer(
         factory = { ctx ->
             PlayerView(ctx).apply {
                 useController = showControls
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                 this.player = player
                 keepScreenOn = true
             }
