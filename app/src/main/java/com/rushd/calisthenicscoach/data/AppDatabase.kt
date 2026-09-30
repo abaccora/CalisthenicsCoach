@@ -86,8 +86,6 @@ abstract class AppDatabase : RoomDatabase() {
                         recordedAt INTEGER NOT NULL
                     )
                 """.trimIndent())
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_assessment_results_metricId ON assessment_results(metricId)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_assessment_results_recordedAt ON assessment_results(recordedAt)")
 
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS skill_states (
