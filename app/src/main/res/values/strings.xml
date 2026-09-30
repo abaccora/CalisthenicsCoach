@@ -1,39 +1,59 @@
 <resources>
     <string name="app_name">Calisthenics Coach</string>
 
-    <string name="nav_today">اليوم</string>
-    <string name="nav_plan">الخطة</string>
-    <string name="nav_library">المكتبة</string>
-    <string name="nav_progress">التقدم</string>
+    <string name="nav_today">Today</string>
+    <string name="nav_plan">Plan</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_progress">Progress</string>
 
-    <string name="assessment_title">تقييم البداية</string>
-    <string name="assessment_previous">السابق</string>
-    <string name="assessment_next">التالي</string>
-    <string name="assessment_finish">إنهاء التقييم</string>
+    <string name="assessment_title">Starting assessment</string>
+    <string name="assessment_previous">Previous</string>
+    <string name="assessment_next">Next</string>
+    <string name="assessment_finish">Finish assessment</string>
 
-    <string name="plan_ready_title">تم إعداد برنامجك</string>
-    <string name="plan_start">ابدأ خطتي</string>
+    <string name="plan_ready_title">Your program is ready</string>
+    <string name="plan_start">Start my plan</string>
 
-    <string name="readiness_title">جاهزية اليوم</string>
-    <string name="readiness_cancel">إلغاء</string>
-    <string name="readiness_prepare">إعداد جلسة اليوم</string>
+    <string name="readiness_title">Today readiness</string>
+    <string name="readiness_cancel">Cancel</string>
+    <string name="readiness_prepare">Prepare today’s session</string>
 
-    <string name="workout_rest">راحة</string>
-    <string name="workout_skip_rest">تجاوز الراحة</string>
-    <string name="workout_reps">التكرارات</string>
-    <string name="workout_hold_seconds">مدة الثبات (ث)</string>
-    <string name="workout_per_side">لكل جهة</string>
-    <string name="workout_rpe">الجهد المدرك (RPE)</string>
-    <string name="workout_substitute">اختيار بديل</string>
-    <string name="workout_previous_performance">أداؤك السابق</string>
-    <string name="workout_finish">إنهاء الجلسة وعرض الملخص</string>
-    <string name="workout_next">التمرين التالي</string>
+    <string name="workout_rest">Rest</string>
+    <string name="workout_skip_rest">Skip</string>
+    <string name="workout_reps">Reps</string>
+    <string name="workout_hold_seconds">Hold (sec)</string>
+    <string name="workout_per_side">Per side</string>
+    <string name="workout_rpe">RPE</string>
+    <string name="workout_substitute">Substitute</string>
+    <string name="workout_previous_performance">Previous performance</string>
+    <string name="workout_finish">Finish session and view summary</string>
+    <string name="workout_next">Next exercise</string>
+    <string name="workout_next_named">Next · %1$s</string>
+    <string name="workout_complete">Session complete</string>
+    <string name="workout_record_set">Log set %1$d of %2$d</string>
+    <string name="workout_rest_seconds">Rest · %1$d sec</string>
+    <string name="workout_next_preview">Next: %1$s</string>
+    <string name="workout_add_30">+30 sec</string>
+    <string name="workout_set_short">Set</string>
+    <string name="workout_previous_short">Previous</string>
+    <string name="workout_today_short">Today</string>
+    <string name="workout_seconds_value">%1$d sec</string>
+    <string name="workout_side_value">%1$d / side</string>
+    <string name="workout_reps_value">%1$d reps</string>
+    <string name="workout_sets_count">%1$d sets</string>
+    <string name="workout_target_label">Target</string>
+    <string name="workout_rest_label">Rest</string>
+    <string name="workout_performance_note">Performance note</string>
+    <string name="workout_logged_sets">Logged sets</string>
+    <string name="workout_set_number">Set %1$d</string>
+    <string name="workout_set_progress">Set %1$d of %2$d</string>
+    <string name="workout_saved_exit">Save and exit</string>
 
-    <string name="summary_title">اكتملت الجلسة</string>
-    <string name="summary_save_finish">حفظ وإنهاء</string>
-    <string name="summary_how_was_session">كيف كانت الجلسة؟</string>
-    <string name="summary_easy">سهلة</string>
-    <string name="summary_right">مناسبة</string>
-    <string name="summary_too_hard">صعبة جدًا</string>
-    <string name="summary_pain">شعرت بألم أو انزعاج أثناء الجلسة</string>
+    <string name="summary_title">Session complete</string>
+    <string name="summary_save_finish">Save and finish</string>
+    <string name="summary_how_was_session">How was the session?</string>
+    <string name="summary_easy">Easy</string>
+    <string name="summary_right">About right</string>
+    <string name="summary_too_hard">Very hard</string>
+    <string name="summary_pain">I felt pain or discomfort during the session</string>
 </resources>
