@@ -1342,6 +1342,7 @@ private fun WorkoutScreen(
 
     var rest by remember { mutableIntStateOf(0) }
     var restOwner by remember { mutableIntStateOf(-1) }
+    var getReadySeconds by remember { mutableIntStateOf(3) }
     var repsInput by remember { mutableStateOf("8") }
     var rpeInput by remember { mutableStateOf("7") }
     var showSubstitute by remember { mutableStateOf(false) }
@@ -1403,6 +1404,14 @@ private fun WorkoutScreen(
                     substitutions = substitutions.toMap()
                 )
             )
+        }
+    }
+
+    LaunchedEffect(index) {
+        getReadySeconds = 3
+        while (getReadySeconds > 0) {
+            delay(1000)
+            getReadySeconds -= 1
         }
     }
 
