@@ -29,12 +29,12 @@ object AssessmentEngine {
                 exerciseName = "Regular Push Up"
             ),
             AssessmentMetric(
-                id = "hollow_hold",
-                titleAr = "الثبات المجوف للجذع (Hollow Hold)",
-                titleEn = "Hollow Hold",
-                unit = "seconds",
-                measurementType = MeasurementType.HOLD_SECONDS,
-                exerciseName = "Hollow Body Hold"
+                id = "core_control_reps",
+                titleAr = "رفع الذراع والساق المتعاكسين لكل جهة",
+                titleEn = "Dead Bug Core Control",
+                unit = "reps_per_side",
+                measurementType = MeasurementType.LEFT_RIGHT_REPS,
+                exerciseName = "Dead Bug"
             ),
             AssessmentMetric(
                 id = "split_squat_reps",
