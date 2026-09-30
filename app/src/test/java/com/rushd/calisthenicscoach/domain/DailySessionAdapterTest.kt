@@ -14,9 +14,9 @@ class DailySessionAdapterTest {
         durationMin = 45,
         exercises = listOf(
             Exercise("Regular Push Up", "ضغط", 3, "8–12", 60, ""),
-            Exercise("Regular Pull Up", "عقلة", 3, "5", 90, ""),
-            Exercise("Split Squat", "قرفصاء منفصلة", 3, "8/جهة", 60, ""),
-            Exercise("Dead Bug", "ديد باغ", 3, "8/جهة", 45, "")
+            Exercise("Regular Pull Up", "سحب على البار", 3, "5", 90, ""),
+            Exercise("Split Squat", "قرفصاء بوضعية الاندفاع الثابت", 3, "8/جهة", 60, ""),
+            Exercise("Dead Bug", "تمرين الجذع المتعاكس (Dead Bug)", 3, "8/جهة", 45, "")
         )
     )
 
